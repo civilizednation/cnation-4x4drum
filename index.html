@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#07111f" />
+  <title>4x4 리듬게임</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: rgba(11, 25, 43, 0.86);
+      --line: rgba(132, 185, 255, 0.22);
+      --text: #ecf7ff;
+      --muted: #8fa8bd;
+      --cyan: #57d7ff;
+      --blue: #248cff;
+      --red: #ff4f67;
+      --gold: #ffc857;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Pretendard, "Noto Sans KR", system-ui, sans-serif;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      min-height: 100dvh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 50% -12%, rgba(40, 137, 255, .28), transparent 40%),
+        radial-gradient(circle at 10% 88%, rgba(66, 218, 255, .12), transparent 36%),
+        linear-gradient(180deg, #09182a 0%, #050b14 100%);
+    }
+
+    button { font: inherit; }
+
+    .app {
+      width: min(100%, 560px);
+      min-height: 100dvh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 9px 7px 8px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(23, 47, 75, .88), rgba(8, 19, 34, .88));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 20px rgba(0,0,0,.2);
+      text-align: center;
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .12em;
+    }
+
+    .stat-value {
+      display: block;
+      overflow: hidden;
+      color: #fff;
+      font-size: clamp(16px, 5vw, 22px);
+      font-weight: 950;
+      line-height: 1.1;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    #livesValue { letter-spacing: 1px; }
+
+    .header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 3px;
+    }
+
+    .title-wrap { min-width: 0; }
+
+    .eyebrow {
+      margin: 0 0 3px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .18em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(23px, 7vw, 34px);
+      line-height: 1;
+      letter-spacing: -.05em;
+    }
+
+    .tempo {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border: 1px solid rgba(87, 215, 255, .35);
+      border-radius: 999px;
+      background: rgba(19, 76, 106, .33);
+      color: #bdefff;
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .board-shell {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-height: min(58dvh, 530px);
+      min-height: 290px;
+      overflow: hidden;
+      border: 1px solid rgba(112, 175, 255, .24);
+      border-radius: 25px;
+      background:
+        linear-gradient(145deg, rgba(28, 54, 84, .44), rgba(5, 13, 24, .8)),
+        repeating-linear-gradient(0deg, transparent 0 34px, rgba(87, 215, 255, .025) 35px),
+        repeating-linear-gradient(90deg, transparent 0 34px, rgba(87, 215, 255, .025) 35px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.38);
+      touch-action: none;
+      user-select: none;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .fallback-grid {
+      position: absolute;
+      inset: 7.5%;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(0, 1fr));
+      gap: 4%;
+      padding: 4%;
+      border-radius: 20px;
+      background: linear-gradient(145deg, #10243a, #06101c);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 18px 35px rgba(0,0,0,.4);
+      transform: perspective(800px) rotateX(5deg);
+    }
+
+    .fallback-pad {
+      min-width: 0;
+      border: 1px solid rgba(137, 198, 255, .26);
+      border-radius: 16%;
+      background: linear-gradient(145deg, #224968, #102a45 55%, #091827);
+      color: #d9efff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -5px 9px rgba(0,0,0,.3), 0 6px 0 #06101a, 0 10px 15px rgba(0,0,0,.32);
+      font-size: clamp(13px, 4vw, 24px);
+      font-weight: 950;
+      text-transform: uppercase;
+      touch-action: manipulation;
+    }
+
+    .fallback-pad.is-cue {
+      background: #55d8ff;
+      color: #03101c;
+      box-shadow: 0 0 24px rgba(85,216,255,.9), 0 3px 0 #126f95;
+      transform: translateY(3px);
+    }
+
+    .fallback-pad.is-success {
+      background: #2495ff;
+      color: white;
+      box-shadow: 0 0 25px rgba(36,149,255,.95), 0 3px 0 #0a4a93;
+      transform: translateY(3px);
+    }
+
+    .fallback-pad.is-fail {
+      background: #ff3859;
+      color: white;
+      box-shadow: 0 0 25px rgba(255,56,89,.9), 0 3px 0 #8d1530;
+      transform: translateY(3px);
+    }
+
+    .board-shine {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(125deg, rgba(255,255,255,.08), transparent 24%, transparent 72%, rgba(58,155,255,.05));
+    }
+
+    .status-panel {
+      min-height: 94px;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 10px 24px rgba(0,0,0,.2);
+    }
+
+    .round-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    #phaseLabel { color: var(--gold); }
+
+    .message {
+      margin: 0;
+      color: #f2f8ff;
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.4;
+      word-break: keep-all;
+    }
+
+    .sub-message {
+      min-height: 18px;
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .progress-track {
+      height: 5px;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 12px rgba(64,174,255,.7);
+      transition: width .25s ease;
+    }
+
+    .hint {
+      margin: 0;
+      padding: 0 5px;
+      color: #71899e;
+      font-size: 10px;
+      line-height: 1.45;
+      text-align: center;
+      word-break: keep-all;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(3, 9, 17, .76);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .overlay.hidden { display: none; }
+
+    .dialog {
+      width: min(100%, 390px);
+      padding: 25px 21px 22px;
+      border: 1px solid rgba(117, 191, 255, .32);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(25, 50, 79, .97), rgba(7, 17, 31, .98));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 30px 80px rgba(0,0,0,.55);
+      text-align: center;
+    }
+
+    .dialog-mark {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 14px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+      padding: 8px;
+      border: 1px solid rgba(87, 215, 255, .35);
+      border-radius: 18px;
+      background: rgba(36, 140, 255, .11);
+      transform: rotate(7deg);
+    }
+
+    .dialog-mark span {
+      border-radius: 5px;
+      background: linear-gradient(145deg, #6ce5ff, #176ce5);
+      box-shadow: 0 0 12px rgba(65, 176, 255, .35);
+    }
+
+    .dialog h2 {
+      margin: 0;
+      color: #fff;
+      font-size: 28px;
+      letter-spacing: -.04em;
+    }
+
+    .dialog p {
+      margin: 11px 0 0;
+      color: #a9bdce;
+      font-size: 13px;
+      line-height: 1.6;
+      word-break: keep-all;
+    }
+
+    .primary-btn {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 20px;
+      border: 0;
+      border-radius: 15px;
+      background: linear-gradient(135deg, #64e4ff, #2388ff);
+      color: #03101c;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 10px 25px rgba(29,132,255,.32);
+      font-size: 16px;
+      font-weight: 950;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .primary-btn:active { transform: translateY(2px); }
+
+    .result-score {
+      margin-top: 15px;
+      color: var(--cyan);
+      font-size: 34px;
+      font-weight: 950;
+    }
+
+    @media (max-height: 720px) {
+      .app { gap: 8px; padding-top: max(8px, env(safe-area-inset-top)); }
+      .header { display: none; }
+      .board-shell { max-height: 54dvh; min-height: 260px; }
+      .status-panel { min-height: 82px; padding: 10px 13px; }
+      .hint { display: none; }
+    }
+
+    @media (min-width: 700px) {
+      .app { padding-top: 24px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="4x4 리듬게임">
+    <section class="topbar" aria-label="게임 상태">
+      <div class="stat">
+        <span class="stat-label">SCORE</span>
+        <strong id="scoreValue" class="stat-value">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">LEVEL</span>
+        <strong id="levelValue" class="stat-value">1</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">LIFE</span>
+        <strong id="livesValue" class="stat-value" aria-label="생명 3개">● ● ●</strong>
+      </div>
+    </section>
+
+    <header class="header">
+      <div class="title-wrap">
+        <p class="eyebrow">CNATION RHYTHM LAB</p>
+        <h1>4×4 리듬게임</h1>
+      </div>
+      <div id="tempoValue" class="tempo">♩ 0.50초</div>
+    </header>
+
+    <section id="boardShell" class="board-shell" aria-label="4행 4열 리듬 터치 패드">
+      <canvas id="gameCanvas"></canvas>
+      <div class="board-shine"></div>
+    </section>
+
+    <section class="status-panel" aria-live="polite">
+      <div class="round-line">
+        <span id="phaseLabel">연습 준비</span>
+        <span id="roundLabel">연습 0 / 4</span>
+      </div>
+      <p id="message" class="message">소리를 켜고 화면을 터치해 시작하세요.</p>
+      <p id="subMessage" class="sub-message">세 번의 패턴을 본 뒤 같은 박자에 네 번째 패드를 누릅니다.</p>
+      <div class="progress-track" aria-hidden="true">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+    </section>
+
+    <p class="hint">시범 패드가 세 번 빛난 뒤, 다음 박자 기준 앞뒤 0.2초 안에 정답 패드를 터치하세요.</p>
+  </main>
+
+  <div id="startOverlay" class="overlay">
+    <div class="dialog">
+      <div class="dialog-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <h2>4×4 리듬게임</h2>
+      <p>첫 4회는 세로 패턴 연습입니다.<br>연습 중에는 실패해도 생명이 줄지 않습니다.</p>
+      <button id="startButton" type="button" class="primary-btn">터치해서 시작</button>
+    </div>
+  </div>
+
+  <div id="gameOverOverlay" class="overlay hidden">
+    <div class="dialog">
+      <div class="dialog-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <h2>GAME OVER</h2>
+      <div id="finalScore" class="result-score">0점</div>
+      <p id="finalText">리듬을 다시 맞춰 보세요.</p>
+      <button id="restartButton" type="button" class="primary-btn">다시 시작</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const ROWS = ["a", "b", "c", "d"];
+      const BASE_INTERVAL = 500;
+      const HIT_TOLERANCE = 200;
+      const PRACTICE_COLUMNS = [0, 1, 2, 3];
+      const PAD_BASE = 0x183451;
+      const PAD_EDGE = 0x071421;
+      const CUE_COLOR = 0x55d8ff;
+      const SUCCESS_COLOR = 0x2495ff;
+      const FAIL_COLOR = 0xff3859;
+
+      const ui = {
+        canvas: document.getElementById("gameCanvas"),
+        board: document.getElementById("boardShell"),
+        score: document.getElementById("scoreValue"),
+        level: document.getElementById("levelValue"),
+        lives: document.getElementById("livesValue"),
+        tempo: document.getElementById("tempoValue"),
+        phase: document.getElementById("phaseLabel"),
+        round: document.getElementById("roundLabel"),
+        message: document.getElementById("message"),
+        subMessage: document.getElementById("subMessage"),
+        progress: document.getElementById("progressFill"),
+        startOverlay: document.getElementById("startOverlay"),
+        gameOverOverlay: document.getElementById("gameOverOverlay"),
+        startButton: document.getElementById("startButton"),
+        restartButton: document.getElementById("restartButton"),
+        finalScore: document.getElementById("finalScore"),
+        finalText: document.getElementById("finalText")
+      };
+
+      const game = {
+        state: "idle",
+        score: 0,
+        level: 1,
+        lives: 3,
+        practiceIndex: 0,
+        levelAttempts: 0,
+        totalAttempts: 0,
+        interval: BASE_INTERVAL,
+        expectedPad: null,
+        expectedAt: 0,
+        timeoutId: null,
+        runToken: 0,
+        currentPractice: false
+      };
+
+      let audioContext = null;
+      let scene;
+      let camera;
+      let renderer;
+      let raycaster;
+      let pointer;
+      let boardGroup;
+      const pads = [];
+      const clickableMeshes = [];
+
+      function padIndex(row, col) {
+        return row * 4 + col;
+      }
+
+      function padName(index) {
+        return ROWS[Math.floor(index / 4)] + ((index % 4) + 1);
+      }
+
+      function roundedRectShape(width, height, radius) {
+        const x = -width / 2;
+        const y = -height / 2;
+        const shape = new THREE.Shape();
+        shape.moveTo(x + radius, y);
+        shape.lineTo(x + width - radius, y);
+        shape.quadraticCurveTo(x + width, y, x + width, y + radius);
+        shape.lineTo(x + width, y + height - radius);
+        shape.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        shape.lineTo(x + radius, y + height);
+        shape.quadraticCurveTo(x, y + height, x, y + height - radius);
+        shape.lineTo(x, y + radius);
+        shape.quadraticCurveTo(x, y, x + radius, y);
+        return shape;
+      }
+
+      function makeLabelTexture(label) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        const context = canvas.getContext("2d");
+        context.clearRect(0, 0, 256, 256);
+        const gradient = context.createLinearGradient(0, 0, 256, 256);
+        gradient.addColorStop(0, "rgba(255,255,255,.13)");
+        gradient.addColorStop(1, "rgba(255,255,255,.02)");
+        context.fillStyle = gradient;
+        context.beginPath();
+        context.moveTo(40, 8);
+        context.lineTo(216, 8);
+        context.quadraticCurveTo(248, 8, 248, 40);
+        context.lineTo(248, 216);
+        context.quadraticCurveTo(248, 248, 216, 248);
+        context.lineTo(40, 248);
+        context.quadraticCurveTo(8, 248, 8, 216);
+        context.lineTo(8, 40);
+        context.quadraticCurveTo(8, 8, 40, 8);
+        context.closePath();
+        context.fill();
+        context.fillStyle = "#d9efff";
+        context.font = "900 76px system-ui, sans-serif";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.shadowColor = "rgba(57,180,255,.55)";
+        context.shadowBlur = 18;
+        context.fillText(label.toUpperCase(), 128, 132);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        return texture;
+      }
+
+      function initThree() {
+        if (!window.THREE) {
+          initFallbackPads();
+          return;
+        }
+
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(39, 1, 0.1, 100);
+        camera.position.set(0, 8.7, 8.9);
+        camera.lookAt(0, 0, 0.15);
+
+        try {
+          renderer = new THREE.WebGLRenderer({ canvas: ui.canvas, antialias: true, alpha: true });
+        } catch (error) {
+          console.warn("WebGL을 사용할 수 없어 2D 입체 패드로 전환합니다.", error);
+          initFallbackPads();
+          return;
+        }
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.15;
+
+        raycaster = new THREE.Raycaster();
+        pointer = new THREE.Vector2();
+
+        scene.add(new THREE.HemisphereLight(0xb9e9ff, 0x07101b, 1.2));
+        const keyLight = new THREE.DirectionalLight(0x8fdfff, 1.7);
+        keyLight.position.set(-4, 8, 6);
+        scene.add(keyLight);
+        const rimLight = new THREE.PointLight(0x217dff, 2.2, 22);
+        rimLight.position.set(5, 3, -2);
+        scene.add(rimLight);
+
+        boardGroup = new THREE.Group();
+        boardGroup.rotation.x = -0.035;
+        scene.add(boardGroup);
+
+        const base = new THREE.Mesh(
+          new THREE.BoxGeometry(8.6, 0.34, 8.6),
+          new THREE.MeshStandardMaterial({ color: 0x081725, roughness: 0.42, metalness: 0.52 })
+        );
+        base.position.y = -0.28;
+        boardGroup.add(base);
+
+        const padShape = roundedRectShape(1.62, 1.62, 0.22);
+        const padGeometry = new THREE.ExtrudeGeometry(padShape, {
+          depth: 0.27,
+          bevelEnabled: true,
+          bevelSegments: 3,
+          steps: 1,
+          bevelSize: 0.075,
+          bevelThickness: 0.075,
+          curveSegments: 7
+        });
+        padGeometry.center();
+        padGeometry.rotateX(Math.PI / 2);
+
+        for (let row = 0; row < 4; row++) {
+          for (let col = 0; col < 4; col++) {
+            const index = padIndex(row, col);
+            const group = new THREE.Group();
+            const material = new THREE.MeshStandardMaterial({
+              color: PAD_BASE,
+              emissive: 0x061525,
+              emissiveIntensity: 0.42,
+              roughness: 0.3,
+              metalness: 0.62
+            });
+            const mesh = new THREE.Mesh(padGeometry, material);
+            mesh.userData.padIndex = index;
+            group.add(mesh);
+
+            const labelMaterial = new THREE.MeshBasicMaterial({
+              map: makeLabelTexture(padName(index)),
+              transparent: true,
+              depthWrite: false
+            });
+            const label = new THREE.Mesh(new THREE.PlaneGeometry(1.43, 1.43), labelMaterial);
+            label.rotation.x = -Math.PI / 2;
+            label.position.y = 0.205;
+            label.userData.padIndex = index;
+            group.add(label);
+
+            const glowMaterial = new THREE.MeshBasicMaterial({
+              color: CUE_COLOR,
+              transparent: true,
+              opacity: 0,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false
+            });
+            const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.96, 1.96), glowMaterial);
+            glow.rotation.x = -Math.PI / 2;
+            glow.position.y = 0.225;
+            group.add(glow);
+
+            group.position.set((col - 1.5) * 1.93, 0, (row - 1.5) * 1.93);
+            boardGroup.add(group);
+            pads.push({ group, mesh, material, glow, glowMaterial, restoreTimer: null });
+            clickableMeshes.push(mesh, label);
+          }
+        }
+
+        const grid = new THREE.GridHelper(8.05, 16, 0x1e5276, 0x102a42);
+        grid.position.y = -0.08;
+        grid.material.transparent = true;
+        grid.material.opacity = .28;
+        boardGroup.add(grid);
+
+        resizeRenderer();
+        renderer.setAnimationLoop(renderFrame);
+      }
+
+      function initFallbackPads() {
+        ui.canvas.style.display = "none";
+        const grid = document.createElement("div");
+        grid.className = "fallback-grid";
+        grid.setAttribute("aria-label", "호환 모드 4x4 터치 패드");
+        for (let index = 0; index < 16; index++) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "fallback-pad";
+          button.textContent = padName(index);
+          button.setAttribute("aria-label", `${padName(index)} 패드`);
+          button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            handlePad(index);
+          });
+          grid.appendChild(button);
+          pads.push({ element: button, restoreTimer: null });
+        }
+        ui.board.insertBefore(grid, ui.board.querySelector(".board-shine"));
+      }
+
+      function resizeRenderer() {
+        if (!renderer) return;
+        const rect = ui.board.getBoundingClientRect();
+        const width = Math.max(1, Math.floor(rect.width));
+        const height = Math.max(1, Math.floor(rect.height));
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+
+      function renderFrame(time) {
+        if (!renderer) return;
+        const float = Math.sin(time * .0014) * .018;
+        boardGroup.rotation.z = float;
+        renderer.render(scene, camera);
+      }
+
+      function setPadColor(index, color, duration = 150) {
+        const pad = pads[index];
+        if (!pad) return;
+        clearTimeout(pad.restoreTimer);
+        if (pad.element) {
+          pad.element.classList.remove("is-cue", "is-success", "is-fail");
+          pad.element.classList.add(color === FAIL_COLOR ? "is-fail" : color === SUCCESS_COLOR ? "is-success" : "is-cue");
+          pad.restoreTimer = setTimeout(() => {
+            pad.element.classList.remove("is-cue", "is-success", "is-fail");
+          }, duration);
+          return;
+        }
+        pad.material.color.setHex(color);
+        pad.material.emissive.setHex(color);
+        pad.material.emissiveIntensity = 1.45;
+        pad.glowMaterial.color.setHex(color);
+        pad.glowMaterial.opacity = .52;
+        pad.group.position.y = -0.08;
+        pad.restoreTimer = setTimeout(() => {
+          pad.material.color.setHex(PAD_BASE);
+          pad.material.emissive.setHex(PAD_EDGE);
+          pad.material.emissiveIntensity = .42;
+          pad.glowMaterial.opacity = 0;
+          pad.group.position.y = 0;
+        }, duration);
+      }
+
+      function initAudio() {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === "suspended") audioContext.resume();
+      }
+
+      function tone({ frequency, endFrequency, duration, volume, type = "sine", when = 0 }) {
+        if (!audioContext) return;
+        const now = audioContext.currentTime + when;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, now);
+        if (endFrequency) oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+        gain.gain.setValueAtTime(.0001, now);
+        gain.gain.exponentialRampToValueAtTime(volume, now + .006);
+        gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+        oscillator.connect(gain).connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + duration + .02);
+      }
+
+      function playCueSound() {
+        tone({ frequency: 760, endFrequency: 920, duration: .055, volume: .065, type: "triangle" });
+      }
+
+      function playSuccessSound() {
+        tone({ frequency: 980, endFrequency: 1540, duration: .11, volume: .13, type: "triangle" });
+        tone({ frequency: 1540, endFrequency: 1980, duration: .08, volume: .065, type: "sine", when: .045 });
+      }
+
+      function playFailSound() {
+        tone({ frequency: 230, endFrequency: 105, duration: .2, volume: .105, type: "square" });
+        tone({ frequency: 150, endFrequency: 90, duration: .18, volume: .05, type: "sawtooth", when: .025 });
+      }
+
+      function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      function randomItem(items) {
+        return items[Math.floor(Math.random() * items.length)];
+      }
+
+      function basePatterns() {
+        const row = Math.floor(Math.random() * 4);
+        const col = Math.floor(Math.random() * 4);
+        return [
+          { name: "가로 →", cells: [0, 1, 2, 3].map(c => padIndex(row, c)) },
+          { name: "세로 ↓", cells: [0, 1, 2, 3].map(r => padIndex(r, col)) },
+          { name: "대각선 ↘", cells: [padIndex(0,0), padIndex(1,1), padIndex(2,2), padIndex(3,3)] },
+          { name: "대각선 ↙", cells: [padIndex(0,3), padIndex(1,2), padIndex(2,1), padIndex(3,0)] }
+        ];
+      }
+
+      function advancedPatterns(level) {
+        const patterns = basePatterns();
+        const row = Math.floor(Math.random() * 4);
+        const col = Math.floor(Math.random() * 4);
+
+        if (level >= 2) {
+          patterns.push(
+            { name: "가로 ←", cells: [3, 2, 1, 0].map(c => padIndex(row, c)) },
+            { name: "세로 ↑", cells: [3, 2, 1, 0].map(r => padIndex(r, col)) },
+            { name: "대각선 ↖", cells: [padIndex(3,3), padIndex(2,2), padIndex(1,1), padIndex(0,0)] },
+            { name: "대각선 ↗", cells: [padIndex(3,0), padIndex(2,1), padIndex(1,2), padIndex(0,3)] }
+          );
+        }
+
+        if (level >= 3) {
+          patterns.push(
+            { name: "바깥 모서리 시계", cells: [padIndex(0,0), padIndex(0,3), padIndex(3,3), padIndex(3,0)] },
+            { name: "바깥 모서리 반시계", cells: [padIndex(0,3), padIndex(0,0), padIndex(3,0), padIndex(3,3)] },
+            { name: "다이아몬드", cells: [padIndex(0,1), padIndex(1,3), padIndex(3,2), padIndex(2,0)] }
+          );
+        }
+
+        if (level >= 4) {
+          const top = Math.floor(Math.random() * 3);
+          const left = Math.floor(Math.random() * 3);
+          patterns.push(
+            { name: "작은 사각형 시계", cells: [padIndex(top,left), padIndex(top,left+1), padIndex(top+1,left+1), padIndex(top+1,left)] },
+            { name: "작은 사각형 반시계", cells: [padIndex(top,left+1), padIndex(top,left), padIndex(top+1,left), padIndex(top+1,left+1)] },
+            { name: "교차 점프", cells: [padIndex(0,0), padIndex(2,2), padIndex(0,3), padIndex(2,1)] }
+          );
+        }
+        return patterns;
+      }
+
+      function practicePattern(column) {
+        return {
+          name: `연습 ${column + 1}열`,
+          cells: [0, 1, 2, 3].map(row => padIndex(row, column))
+        };
+      }
+
+      function updateUI() {
+        ui.score.textContent = game.score;
+        ui.level.textContent = game.level;
+        ui.lives.textContent = [0, 1, 2].map(i => i < game.lives ? "●" : "○").join(" ");
+        ui.lives.setAttribute("aria-label", `생명 ${game.lives}개`);
+        ui.tempo.textContent = `♩ ${(game.interval / 1000).toFixed(2)}초`;
+
+        if (game.practiceIndex < 4 && game.currentPractice) {
+          ui.round.textContent = `연습 ${Math.min(game.practiceIndex + 1, 4)} / 4`;
+          ui.progress.style.width = `${(game.practiceIndex / 4) * 100}%`;
+        } else {
+          ui.round.textContent = `LEVEL ${game.level} · ${game.levelAttempts} / 5`;
+          ui.progress.style.width = `${(game.levelAttempts / 5) * 100}%`;
+        }
+      }
+
+      function resetGame() {
+        clearTimeout(game.timeoutId);
+        game.runToken += 1;
+        game.state = "idle";
+        game.score = 0;
+        game.level = 1;
+        game.lives = 3;
+        game.practiceIndex = 0;
+        game.levelAttempts = 0;
+        game.totalAttempts = 0;
+        game.interval = BASE_INTERVAL;
+        game.expectedPad = null;
+        game.expectedAt = 0;
+        game.currentPractice = true;
+        ui.phase.textContent = "연습 준비";
+        ui.message.textContent = "세로 패턴 4회로 박자를 익힙니다.";
+        ui.subMessage.textContent = "연습에서는 실패해도 생명이 줄지 않습니다.";
+        updateUI();
+      }
+
+      async function startGame() {
+        initAudio();
+        ui.startOverlay.classList.add("hidden");
+        ui.gameOverOverlay.classList.add("hidden");
+        resetGame();
+        const token = game.runToken;
+        await wait(700);
+        if (token !== game.runToken) return;
+        runNextRound(token);
+      }
+
+      async function runNextRound(token = game.runToken) {
+        if (token !== game.runToken || game.state === "over") return;
+        clearTimeout(game.timeoutId);
+        game.state = "showing";
+
+        let pattern;
+        if (game.practiceIndex < 4) {
+          game.currentPractice = true;
+          pattern = practicePattern(PRACTICE_COLUMNS[game.practiceIndex]);
+          ui.phase.textContent = "연습 모드";
+          ui.message.textContent = `${game.practiceIndex + 1}번째 세로 패턴을 잘 보세요.`;
+          ui.subMessage.textContent = "틱 · 틱 · 틱 · 다음 박자에 마지막 칸 터치";
+        } else {
+          game.currentPractice = false;
+          pattern = randomItem(advancedPatterns(game.level));
+          ui.phase.textContent = "패턴 재생";
+          ui.message.textContent = "세 번의 움직임을 보고 규칙을 찾으세요.";
+          ui.subMessage.textContent = `LEVEL ${game.level} · 리듬 간격 ${(game.interval / 1000).toFixed(2)}초`;
+        }
+        updateUI();
+
+        for (let i = 0; i < 3; i++) {
+          if (token !== game.runToken || game.state === "over") return;
+          setPadColor(pattern.cells[i], CUE_COLOR, Math.min(165, game.interval * .42));
+          playCueSound();
+          if (i < 2) await wait(game.interval);
+        }
+
+        if (token !== game.runToken || game.state === "over") return;
+        game.expectedPad = pattern.cells[3];
+        game.expectedAt = performance.now() + game.interval;
+        game.state = "waiting";
+        ui.phase.textContent = "YOUR BEAT";
+        ui.message.textContent = "다음 박자에 정답 패드를 터치!";
+        ui.subMessage.textContent = "판정 허용 범위 ±0.20초";
+
+        game.timeoutId = setTimeout(() => {
+          if (game.state !== "waiting" || token !== game.runToken) return;
+          resolveAttempt(false, game.expectedPad, "시간 초과", null, token);
+        }, game.interval + HIT_TOLERANCE + 16);
+      }
+
+      function handlePad(index) {
+        if (game.state !== "waiting") return;
+        const token = game.runToken;
+        const now = performance.now();
+        const timingError = now - game.expectedAt;
+        const correctPosition = index === game.expectedPad;
+        const correctTiming = Math.abs(timingError) <= HIT_TOLERANCE;
+
+        if (correctPosition && correctTiming) {
+          resolveAttempt(true, index, "PASS", timingError, token);
+        } else {
+          let reason = "잘못된 패드";
+          if (correctPosition && timingError < -HIT_TOLERANCE) reason = "너무 빠름";
+          if (correctPosition && timingError > HIT_TOLERANCE) reason = "너무 늦음";
+          resolveAttempt(false, index, reason, timingError, token);
+        }
+      }
+
+      async function resolveAttempt(success, touchedPad, reason, timingError, token) {
+        if (game.state !== "waiting" || token !== game.runToken) return;
+        game.state = "result";
+        clearTimeout(game.timeoutId);
+
+        if (success) {
+          setPadColor(touchedPad, SUCCESS_COLOR, 230);
+          playSuccessSound();
+          navigator.vibrate?.(18);
+          ui.phase.textContent = "PASS";
+          ui.message.textContent = game.currentPractice ? "좋아요! 박자를 정확히 맞췄습니다." : "+10점 · 정확한 리듬입니다.";
+          ui.subMessage.textContent = `타이밍 오차 ${timingError >= 0 ? "+" : ""}${Math.round(timingError)}ms`;
+          if (!game.currentPractice) game.score += 10;
+        } else {
+          setPadColor(touchedPad, FAIL_COLOR, 280);
+          if (touchedPad !== game.expectedPad) setPadColor(game.expectedPad, FAIL_COLOR, 280);
+          playFailSound();
+          navigator.vibrate?.([45, 30, 65]);
+          ui.phase.textContent = "FAIL";
+          ui.message.textContent = `${reason} · 정답은 ${padName(game.expectedPad).toUpperCase()}`;
+          ui.subMessage.textContent = timingError === null ? "입력 시간이 지나갔습니다." : `타이밍 오차 ${timingError >= 0 ? "+" : ""}${Math.round(timingError)}ms`;
+          if (!game.currentPractice) game.lives -= 1;
+        }
+
+        if (game.currentPractice) {
+          game.practiceIndex += 1;
+        } else {
+          game.totalAttempts += 1;
+          game.levelAttempts += 1;
+        }
+        updateUI();
+
+        if (game.lives <= 0) {
+          await wait(650);
+          if (token === game.runToken) gameOver();
+          return;
+        }
+
+        if (!game.currentPractice && game.levelAttempts >= 5) {
+          await wait(650);
+          if (token !== game.runToken) return;
+          game.level += 1;
+          game.levelAttempts = 0;
+          game.interval = Math.max(180, Math.round(BASE_INTERVAL * Math.pow(.8, game.level - 1)));
+          ui.phase.textContent = "LEVEL UP";
+          ui.message.textContent = `LEVEL ${game.level} · 속도가 20% 빨라집니다.`;
+          ui.subMessage.textContent = "새로운 패턴이 추가될 수 있습니다.";
+          updateUI();
+          playSuccessSound();
+          await wait(1000);
+        } else {
+          await wait(game.currentPractice ? 700 : 620);
+        }
+
+        if (token !== game.runToken) return;
+        if (game.practiceIndex === 4 && game.currentPractice) {
+          game.currentPractice = false;
+          ui.phase.textContent = "연습 완료";
+          ui.message.textContent = "이제 본게임을 시작합니다!";
+          ui.subMessage.textContent = "5번 입력할 때마다 레벨이 올라갑니다.";
+          ui.progress.style.width = "0%";
+          await wait(1150);
+        }
+        runNextRound(token);
+      }
+
+      function gameOver() {
+        game.state = "over";
+        clearTimeout(game.timeoutId);
+        ui.finalScore.textContent = `${game.score}점`;
+        ui.finalText.textContent = `LEVEL ${game.level} · 총 ${game.totalAttempts}회 도전`;
+        ui.gameOverOverlay.classList.remove("hidden");
+      }
+
+      function pointerToPad(event) {
+        if (!renderer || !raycaster) return;
+        event.preventDefault();
+        const rect = ui.canvas.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const intersections = raycaster.intersectObjects(clickableMeshes, false);
+        if (!intersections.length) return;
+        const index = intersections[0].object.userData.padIndex;
+        if (Number.isInteger(index)) handlePad(index);
+      }
+
+      ui.canvas.addEventListener("pointerdown", pointerToPad, { passive: false });
+      ui.startButton.addEventListener("click", startGame);
+      ui.restartButton.addEventListener("click", startGame);
+      window.addEventListener("resize", resizeRenderer);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && game.state !== "idle" && game.state !== "over") {
+          game.runToken += 1;
+          clearTimeout(game.timeoutId);
+          game.state = "idle";
+          ui.startOverlay.classList.remove("hidden");
+          ui.startButton.textContent = "처음부터 다시 시작";
+          ui.message.textContent = "게임이 일시 중단되었습니다.";
+          ui.subMessage.textContent = "다시 시작하면 연습부터 진행합니다.";
+        }
+      });
+
+      initThree();
+      resetGame();
+    })();
+  </script>
+</body>
+</html>
