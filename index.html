@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>cnation-4x4drum</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg-1:#120d1e;
@@ -30,7 +27,7 @@
       radial-gradient(120% 90% at 50% -10%, #2a2050 0%, transparent 55%),
       linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
     color:var(--text-1);
-    font-family:'JetBrains Mono', monospace;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
     -webkit-user-select:none; user-select:none;
     touch-action:none;
   }
@@ -54,7 +51,7 @@
   }
   .stat{ display:flex; flex-direction:column; align-items:center; min-width:64px; }
   .stat .label{
-    font-family:'Unbounded', sans-serif;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
     font-size:9px; font-weight:700; letter-spacing:.12em;
     color:var(--text-dim); text-transform:uppercase;
   }
@@ -66,7 +63,7 @@
   .heart{ font-size:15px; filter:drop-shadow(0 0 4px rgba(255,71,99,.5)); transition:opacity .2s, transform .2s; }
   .heart.dead{ opacity:.18; transform:scale(.8); filter:none; }
   #titleTag{
-    font-family:'Unbounded', sans-serif; font-weight:900; font-size:12px;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif; font-weight:900; font-size:12px;
     letter-spacing:.06em; color:var(--text-1); text-align:center;
   }
   #titleTag span{ display:block; font-size:9px; font-weight:500; color:var(--text-dim); letter-spacing:.15em; margin-top:2px; }
@@ -111,7 +108,7 @@
   #centerLabel{
     position:absolute; left:0; right:0; top:-38px;
     text-align:center;
-    font-family:'Unbounded', sans-serif;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
     font-weight:700; font-size:12px; letter-spacing:.1em;
     color:var(--accent-guide);
     text-transform:uppercase;
@@ -131,7 +128,7 @@
   #perfectBurst{
     position:absolute; left:0; right:0; top:34%; z-index:6;
     text-align:center; pointer-events:none;
-    font-family:'Unbounded', sans-serif; font-weight:900;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif; font-weight:900;
     font-size:clamp(26px, 8vw, 38px); letter-spacing:.05em;
     background:linear-gradient(135deg, #fffbe6, #ffd23f 40%, #ff8a1e 100%);
     -webkit-background-clip:text; background-clip:text; color:transparent;
@@ -168,14 +165,14 @@
     padding:24px;
   }
   .overlay h1{
-    font-family:'Unbounded', sans-serif; font-size:26px; font-weight:900;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif; font-size:26px; font-weight:900;
     margin:0 0 6px; letter-spacing:.02em;
   }
   .overlay p{ color:var(--text-dim); font-size:13px; line-height:1.7; max-width:320px; margin:0 0 18px; }
 
   #modeSelect{ display:flex; gap:10px; margin-bottom:10px; }
   .modeBtn{
-    font-family:'Unbounded', sans-serif;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
     background:transparent;
     border:1.5px solid var(--panel-edge);
     color:var(--text-dim);
@@ -195,7 +192,7 @@
   }
 
   .btn{
-    font-family:'Unbounded', sans-serif;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
     background:linear-gradient(135deg, #7a5cf0, #42e5ff);
     color:#0c0a16;
     border:none; border-radius:999px;
@@ -221,7 +218,7 @@
   }
   .linkBtn{
     margin-top:14px; background:none; border:none;
-    color:var(--text-dim); font-family:'JetBrains Mono',monospace;
+    color:var(--text-dim); font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
     font-size:11px; text-decoration:underline; cursor:pointer;
   }
   .overlay.scrollable{
@@ -236,7 +233,7 @@
     margin-top:16px; letter-spacing:.03em;
   }
   #gameOverOverlay .finalScore{
-    font-family:'Unbounded', sans-serif; font-size:44px; font-weight:900;
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif; font-size:44px; font-weight:900;
     background:linear-gradient(135deg,#42e5ff,#7a5cf0);
     -webkit-background-clip:text; background-clip:text; color:transparent;
     margin-bottom:4px;
@@ -249,6 +246,32 @@
     font-size:9px; color:var(--text-dim); opacity:.5; letter-spacing:.04em;
     z-index:30; pointer-events:none;
   }
+
+  /* ---------- v1.0.4 typography/readability ---------- */
+  html, body, button, input {
+    font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
+  }
+  .stat .label{ font-size:11px; font-weight:700; letter-spacing:.08em; }
+  .stat .value{ font-size:22px; }
+  #titleTag{ font-size:15px; font-weight:700; letter-spacing:.03em; }
+  #titleTag span{ font-size:11px; font-weight:600; letter-spacing:.08em; }
+  #modeTag{ font-size:11px; letter-spacing:.04em; }
+  #centerLabel{ font-size:14px; letter-spacing:.05em; }
+  #hint{ font-size:13px; line-height:1.5; padding:8px 18px 2px; }
+  .overlay h1{ font-size:28px; font-weight:700; }
+  .overlay p{ font-size:15px; line-height:1.7; }
+  .modeBtn{ font-size:13px; padding:11px 18px; }
+  #modeDesc{ font-size:13px; line-height:1.55; min-height:20px; }
+  .btn{ font-size:15px; padding:15px 34px; }
+  .btn-primary-lg{ font-size:18px; }
+  .btn-secondary{ font-size:14px; padding:13px 30px; }
+  .linkBtn{ font-size:13px; }
+  #creatorTag{ font-size:12px; }
+  #gameOverOverlay .finalLevel{ font-size:14px; }
+  #versionTag{ font-size:10px; }
+  #promptOverlay h3{ font-size:17px !important; }
+  #promptOverlay p{ font-size:14px !important; }
+  #promptInput{ font-size:16px !important; }
 </style>
 </head>
 <body>
@@ -306,7 +329,7 @@
     <div class="finalScore" id="finalScoreVal">0</div>
     <div class="finalLevel" id="finalLevelVal">LEVEL 1 에서 종료</div>
     <button class="btn" id="retryBtn">다시 시작</button>
-    <button class="linkBtn" id="changeModeBtn">모드 변경</button>
+    <button class="btn btn-secondary" id="changeModeBtn">돌아가기</button>
   </div>
 
   <div class="overlay scrollable" id="rankingOverlay" hidden>
@@ -318,7 +341,7 @@
 
   <div class="overlay" id="promptOverlay" hidden>
     <div style="background:#1d1730;border:1.5px solid var(--panel-edge);border-radius:16px;padding:22px;width:100%;max-width:300px;box-sizing:border-box;">
-      <h3 style="margin:0 0 8px;color:var(--accent-guide);font-family:'Unbounded',sans-serif;font-size:15px;">🏆 Top 10 진입 🏆</h3>
+      <h3 style="margin:0 0 8px;color:var(--accent-guide);font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;font-size:15px;">🏆 Top 10 진입 🏆</h3>
       <p style="font-size:12px;color:var(--text-dim);margin:0 0 14px;line-height:1.6;">축하합니다! 랭킹에 등록할<br>이름(닉네임)을 입력해주세요.</p>
       <input type="text" id="promptInput" maxlength="20" style="width:100%;padding:10px;margin-bottom:14px;border:1.5px solid var(--panel-edge);border-radius:8px;font-size:14px;background:#120d1e;color:var(--text-1);box-sizing:border-box;">
       <button class="btn" id="promptConfirmBtn" style="width:100%;margin:0 0 8px;">확인</button>
@@ -326,7 +349,7 @@
     </div>
   </div>
 
-  <div id="versionTag">Version 1.0.3</div>
+  <div id="versionTag">Version 1.0.4</div>
 
 </div>
 
@@ -360,7 +383,7 @@
   const COLOR_PERFECT    = 0xffd23f;   // 더 화려하고 진한 골드
   const COLOR_PERFECT_PEAK = 0xffffff; // Perfect 순간 첫 섬광은 백금색으로 시작해 골드로 번짐
 
-  const APP_VERSION = '1.0.3';
+  const APP_VERSION = '1.0.4';
 
   let selectedMode = '4/4';
   let currentPool = null;      // { practice, baseMain, diagForward, diagReverse, baseInterval }

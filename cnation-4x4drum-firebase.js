@@ -65,9 +65,9 @@ function renderModeCard(info){
     rows = `<tr><td colspan="3" style="padding:16px;color:#9686b8;font-size:12px;">아직 등록된 랭킹이 없습니다</td></tr>`;
   }
   return `<div style="background:#211a35;border:1.5px solid ${info.color};border-radius:16px;padding:16px;margin-bottom:16px;">
-    <div style="font-family:'Unbounded',sans-serif;font-weight:800;font-size:14px;letter-spacing:.04em;color:${info.color};text-align:center;margin-bottom:10px;">${info.name}</div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <tr style="color:#9686b8;font-size:11px;">
+    <div style="font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;font-weight:700;font-size:16px;letter-spacing:.02em;color:${info.color};text-align:center;margin-bottom:10px;">${info.name}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr style="color:#9686b8;font-size:12px;">
         <th style="padding:6px 4px;border-bottom:1px solid #3a2c5c;">순위</th>
         <th style="padding:6px 4px;border-bottom:1px solid #3a2c5c;">이름</th>
         <th style="padding:6px 4px;border-bottom:1px solid #3a2c5c;">점수</th>
