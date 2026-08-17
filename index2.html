@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>cnation 4x4 DRUM</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      background: #0a0812;
+      font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+      color: #fff;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #game-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    #ui-root {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      background: rgba(10, 8, 18, 0.95);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .overlay-title {
+      font-size: 28px;
+      font-weight: 900;
+      margin-bottom: 16px;
+      letter-spacing: 1px;
+    }
+
+    .mode-button {
+      width: 100%;
+      max-width: 320px;
+      padding: 14px;
+      margin: 8px 0;
+      border: 2px solid #7b5cff;
+      border-radius: 14px;
+      background: rgba(30, 22, 60, 0.7);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-button.selected {
+      background: #7b5cff;
+      border-color: #a88bff;
+    }
+
+    .mode-desc {
+      font-size: 13px;
+      color: #cfc3ff;
+      margin: 8px 0 16px;
+      line-height: 1.4;
+    }
+
+    .primary-button {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 14px;
+      background: #7b5cff;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .primary-button:active {
+      background: #5a3fd6;
+    }
+
+    .secondary-button {
+      padding: 10px 20px;
+      border: 1px solid #7b5cff;
+      border-radius: 12px;
+      background: transparent;
+      color: #cfc3ff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin: 4px;
+    }
+
+    .link-button {
+      background: none;
+      border: none;
+      color: #8fa6ff;
+      font-size: 13px;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 12px 16px;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .hud-block {
+      text-align: center;
+      min-width: 80px;
+    }
+
+    .hud-label {
+      font-size: 11px;
+      color: #9f93cc;
+      letter-spacing: 1px;
+    }
+
+    .hud-value {
+      font-size: 22px;
+      font-weight: 900;
+      margin-top: 2px;
+    }
+
+    #hearts {
+      font-size: 22px;
+      letter-spacing: 4px;
+      margin-top: 6px;
+    }
+
+    #practice-overlay {
+      background: rgba(10, 8, 18, 0.7);
+      z-index: 30;
+    }
+
+    #go-overlay {
+      background: rgba(10, 8, 18, 0.8);
+      z-index: 31;
+    }
+
+    #go-overlay .overlay-title {
+      font-size: 52px;
+      color: #ffd23f;
+      text-shadow: 0 0 20px #ffd23f;
+    }
+
+    #perfect-overlay {
+      position: absolute;
+      top: 30%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      pointer-events: none;
+      z-index: 40;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    #perfect-overlay.show {
+      opacity: 1;
+    }
+
+    #perfect-text {
+      font-size: 44px;
+      font-weight: 900;
+      background: linear-gradient(180deg, #fff 0%, #ffd23f 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 30px #ffd23f;
+    }
+
+    #gameover-overlay,
+    #ranking-overlay,
+    #nickname-overlay {
+      z-index: 50;
+    }
+
+    .rank-card {
+      background: rgba(30, 22, 60, 0.8);
+      border-radius: 16px;
+      padding: 16px;
+      width: 100%;
+      max-width: 340px;
+      margin: 12px 0;
+    }
+
+    .rank-card h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #ffd23f;
+    }
+
+    .rank-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .rank-table th,
+    .rank-table td {
+      padding: 6px 4px;
+      text-align: left;
+      border-bottom: 1px solid #3a2d6e;
+    }
+
+    .rank-table th {
+      color: #9f93cc;
+      font-size: 12px;
+    }
+
+    input {
+      width: 100%;
+      max-width: 280px;
+      padding: 12px;
+      font-size: 16px;
+      border: 2px solid #7b5cff;
+      border-radius: 12px;
+      background: #1b1533;
+      color: #fff;
+      outline: none;
+      text-align: center;
+      margin: 8px 0;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 12px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 10px;
+      color: #6b5e99;
+      z-index: 15;
+    }
+
+    .bottom-guide {
+      position: absolute;
+      bottom: 48px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 13px;
+      color: #cfc3ff;
+      z-index: 15;
+      padding: 0 20px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <div id="ui-root">
+    <!-- 메인 메뉴 -->
+    <div id="main-menu" class="screen">
+      <div class="overlay-title">4×4 DRUM</div>
+      <div style="font-size:14px; color:#cfc3ff; margin-bottom:20px;">cnation beta</div>
+
+      <div id="mode-select" style="width:100%; max-width:360px;">
+        <button class="mode-button" data-mode="44">4분의 4박자</button>
+        <div class="mode-desc">앱이 0.5초 간격으로 3칸을 먼저 찍고, 이어지는 1칸을 예측해 터치합니다</div>
+
+        <button class="mode-button" data-mode="88">8분의 8박자</button>
+        <div class="mode-desc">앱이 0.3초 간격으로 6칸을 먼저 찍고, 이어지는 2칸을 연속으로 예측해 터치합니다</div>
+      </div>
+
+      <button id="start-button" class="primary-button" style="margin-top:16px;">게임 시작</button>
+      <button id="ranking-button" class="secondary-button" style="margin-top:10px;">랭킹 확인</button>
+
+      <div style="margin-top:32px; font-size:12px; color:#9f93cc;">제작자 : cnation(문명국)</div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div class="hud-block">
+        <div class="hud-label">SCORE</div>
+        <div id="score-value" class="hud-value">0</div>
+      </div>
+      <div class="hud-block">
+        <div style="font-size:15px; font-weight:900;">4x4 DRUM</div>
+        <div style="font-size:11px; color:#9f93cc;">cnation beta</div>
+        <div id="mode-text" style="font-size:11px; color:#ffd23f;"></div>
+      </div>
+      <div class="hud-block">
+        <div class="hud-label">LEVEL</div>
+        <div id="level-value" class="hud-value">1</div>
+      </div>
+      <div id="hearts" style="position:absolute; top:70px; left:16px;">❤ ❤ ❤</div>
+    </div>
+
+    <!-- 연습 오버레이 -->
+    <div id="practice-overlay" class="screen hidden">
+      <div class="overlay-title" id="practice-text">PRACTICE 1 / 4</div>
+      <div style="font-size:14px; color:#cfc3ff;">패턴을 보고 이어질 패드를 눌러보세요</div>
+    </div>
+
+    <!-- GO! -->
+    <div id="go-overlay" class="screen hidden">
+      <div class="overlay-title">GO!</div>
+    </div>
+
+    <!-- PERFECT -->
+    <div id="perfect-overlay">
+      <div id="perfect-text">PERFECT!</div>
+    </div>
+
+    <!-- 게임 오버 -->
+    <div id="gameover-overlay" class="screen hidden">
+      <div class="overlay-title">Game Over</div>
+      <div id="final-score" style="font-size:20px; margin:8px 0;"></div>
+      <div id="final-level" style="font-size:16px; margin-bottom:24px;"></div>
+      <button id="restart-button" class="primary-button">다시 시작</button>
+      <button id="home-button" class="secondary-button" style="margin-top:10px;">돌아가기</button>
+    </div>
+
+    <!-- 랭킹 -->
+    <div id="ranking-overlay" class="screen hidden">
+      <div class="overlay-title">🏆 랭킹 Top 10 🏆</div>
+      <div id="ranking-cards" style="width:100%; max-width:360px;"></div>
+      <button id="ranking-back" class="secondary-button">돌아가기</button>
+      <button id="ranking-reset" class="link-button" style="margin-top:12px;">랭킹 리셋 (관리자용)</button>
+    </div>
+
+    <!-- 닉네임 입력 -->
+    <div id="nickname-overlay" class="screen hidden">
+      <div class="overlay-title">랭킹 등록</div>
+      <div style="font-size:15px; color:#cfc3ff; margin-bottom:8px;">Top 10에 진입했습니다!</div>
+      <input id="nickname-input" type="text" maxlength="20" placeholder="닉네임 입력" />
+      <button id="nickname-submit" class="primary-button">등록</button>
+    </div>
+
+    <div class="bottom-guide" id="bottom-guide">
+      패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요 · 레벨2+ 대각선, 레벨4+ 역방향 대각선 등장
+    </div>
+    <div class="footer">Version 1.0.4</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="cnation-4x4drum-firebase.js"></script>
+  <script>
+    (function() {
+      // ===================== 상수 =====================
+      const APP_VERSION = '1.0.4';
+      const PAD_SIZE = 1.32;
+      const PAD_HEIGHT = 0.34;
+      const GAP = 0.22;
+      const STEP = PAD_SIZE + GAP;
+      const DEFAULT_COLOR = 0x362a58;
+      const BASE_COLOR = 0x1b1533;
+      const GUIDE_COLOR = 0xffcb57;
+      const SUCCESS_COLOR = 0x42e5ff;
+      const FAIL_COLOR = 0xff4763;
+      const PERFECT_COLOR = 0xffd23f;
+      const PASS_MS = 200;
+      const PERFECT_MS = 50;
+      const SUCCESS_PER_LEVEL = 5;
+      const ROUND_GAP = 550;
+      const BASE_INTERVAL_44 = 500;
+      const BASE_INTERVAL_88 = 300;
+      const MAX_LEVEL = 30;
+
+      // ===================== DOM =====================
+      const mainMenu = document.getElementById('main-menu');
+      const hud = document.getElementById('hud');
+      const practiceOverlay = document.getElementById('practice-overlay');
+      const practiceText = document.getElementById('practice-text');
+      const goOverlay = document.getElementById('go-overlay');
+      const gameoverOverlay = document.getElementById('gameover-overlay');
+      const finalScore = document.getElementById('final-score');
+      const finalLevel = document.getElementById('final-level');
+      const restartButton = document.getElementById('restart-button');
+      const homeButton = document.getElementById('home-button');
+      const rankingOverlay = document.getElementById('ranking-overlay');
+      const rankingCards = document.getElementById('ranking-cards');
+      const rankingBack = document.getElementById('ranking-back');
+      const rankingReset = document.getElementById('ranking-reset');
+      const nicknameOverlay = document.getElementById('nickname-overlay');
+      const nicknameInput = document.getElementById('nickname-input');
+      const nicknameSubmit = document.getElementById('nickname-submit');
+      const scoreValue = document.getElementById('score-value');
+      const levelValue = document.getElementById('level-value');
+      const modeText = document.getElementById('mode-text');
+      const hearts = document.getElementById('hearts');
+      const startButton = document.getElementById('start-button');
+      const rankingButton = document.getElementById('ranking-button');
+      const modeButtons = document.querySelectorAll('.mode-button');
+      const perfectOverlay = document.getElementById('perfect-overlay');
+
+      // ===================== 상태 변수 =====================
+      let selectedMode = '44';
+      let state = 'idle'; // idle | practice | playing | gameover
+      let interval = BASE_INTERVAL_44;
+      let level = 1;
+      let score = 0;
+      let lives = 3;
+      let successCount = 0;
+      let lastPatternKey = null;
+
+      let currentPattern = [];
+      let roundActive = false;
+      let inputPhase = false;
+      let userTargets = [];
+      let userTargetIndex = 0;
+      let roundStartTime = 0;
+      let guideTimeouts = [];
+      let userTargetTimeouts = [];
+      let roundEndTimer = null;
+
+      let practiceIndex = 0;
+      let practiceTotal = 0;
+      let practicePatterns = [];
+
+      // ===================== Three.js 초기화 =====================
+      const container = document.getElementById('game-container');
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0812);
+
+      const gridTotal = 4 * PAD_SIZE + 3 * GAP;
+      const worldSize = gridTotal + 2.4;
+      const aspect = window.innerWidth / window.innerHeight;
+      let halfW, halfH;
+      if (aspect > 1) {
+        halfH = worldSize / 2;
+        halfW = halfH * aspect;
+      } else {
+        halfW = worldSize / 2;
+        halfH = halfW / aspect;
+      }
+
+      const camera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, 100);
+      camera.position.set(0, 0, 10);
+      camera.lookAt(0, 0, 0);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      const ambientLight = new THREE.AmbientLight(0x8877cc, 0.7);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      dirLight.position.set(2, 4, 6);
+      scene.add(dirLight);
+
+      const pointLight = new THREE.PointLight(0x7b5cff, 0.6, 20);
+      pointLight.position.set(0, 0, 5);
+      scene.add(pointLight);
+
+      // ===================== 패드 생성 =====================
+      const rows = ['a', 'b', 'c', 'd'];
+      const cols = ['1', '2', '3', '4'];
+      const pads = [];
+      const padMap = {};
+      const padMeshes = [];
+
+      rows.forEach((row, r) => {
+        cols.forEach((col, c) => {
+          const id = row + col;
+          const x = (c - 1.5) * STEP;
+          const y = (1.5 - r) * STEP;
+
+          const group = new THREE.Group();
+          group.position.set(x, y, 0);
+
+          // 베이스 프레임 (검은색/보라색)
+          const baseGeo = new THREE.BoxGeometry(PAD_SIZE + 0.16, PAD_HEIGHT + 0.08, PAD_SIZE + 0.16);
+          const baseMat = new THREE.MeshStandardMaterial({ color: BASE_COLOR, roughness: 0.5, metalness: 0.2 });
+          const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+          baseMesh.position.z = -0.08;
+          group.add(baseMesh);
+
+          // 실제 패드
+          const padGeo = new THREE.BoxGeometry(PAD_SIZE, PAD_HEIGHT, PAD_SIZE);
+          const padMat = new THREE.MeshStandardMaterial({ color: DEFAULT_COLOR, roughness: 0.35, metalness: 0.15 });
+          const padMesh = new THREE.Mesh(padGeo, padMat);
+          padMesh.position.z = 0;
+          padMesh.userData.padId = id;
+          group.add(padMesh);
+
+          scene.add(group);
+
+          const padObj = {
+            id,
+            row: r,
+            col: c,
+            group,
+            baseMesh,
+            padMesh,
+            originalZ: 0,
+            pressY: 0,
+            currentOffset: 0
+          };
+          pads.push(padObj);
+          padMap[id] = padObj;
+          padMeshes.push(padMesh);
+        });
+      });
+
+      // ===================== Beat Ring =====================
+      const ringGeo = new THREE.RingGeometry(0.9, 1.0, 48);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x42e5ff, transparent: true, opacity: 0 });
+      const beatRing = new THREE.Mesh(ringGeo, ringMat);
+      beatRing.position.z = 0.5;
+      scene.add(beatRing);
+      let ringActive = false;
+      let ringScale = 0.5;
+      let ringOpacity = 0.7;
+
+      function spawnBeatRing() {
+        beatRing.scale.set(1, 1, 1);
+        beatRing.material.opacity = 0.7;
+        ringScale = 1;
+        ringOpacity = 0.7;
+        ringActive = true;
+      }
+
+      // ===================== Spark Particle Pool =====================
+      const sparkPool = [];
+      const sparkCount = 42;
+      for (let i = 0; i < sparkCount; i++) {
+        const geo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.visible = false;
+        scene.add(mesh);
+        sparkPool.push({
+          mesh,
+          vx: 0,
+          vy: 0,
+          vz: 0,
+          life: 0,
+          maxLife: 0,
+          active: false
+        });
+      }
+
+      function spawnPerfectSparks() {
+        let spawned = 0;
+        for (let i = 0; i < sparkPool.length && spawned < 18; i++) {
+          const spark = sparkPool[i];
+          if (!spark.active) {
+            spark.active = true;
+            spark.mesh.visible = true;
+            spark.mesh.position.set(0, 0, 0.6);
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2.5 + Math.random() * 3;
+            spark.vx = Math.cos(angle) * speed;
+            spark.vy = Math.sin(angle) * speed;
+            spark.vz = (Math.random() - 0.5) * 2;
+            spark.maxLife = 0.5 + Math.random() * 0.5;
+            spark.life = spark.maxLife;
+            spark.mesh.material.opacity = 1;
+            spawned++;
+          }
+        }
+      }
+
+      // ===================== Audio =====================
+      let audioCtx = null;
+
+      function initAudio() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      }
+
+      function playTone(freq, duration, type = 'sine', vol = 0.2) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }
+
+      function playGuideTick() { playTone(880, 0.07, 'square', 0.15); }
+      function playUserTap() { playTone(660, 0.06, 'square', 0.1); }
+      function playSuccess() { playTone(780, 0.09, 'sine', 0.2); setTimeout(() => playTone(1040, 0.09, 'sine', 0.2), 70); }
+      function playFail() { playTone(180, 0.2, 'sawtooth', 0.12); }
+      function playPerfect() { playTone(1200, 0.06, 'sine', 0.25); setTimeout(() => playTone(1500, 0.06, 'sine', 0.25), 50); setTimeout(() => playTone(1800, 0.1, 'sine', 0.25), 100); }
+      function playLevelUp() { playTone(523, 0.1, 'sine', 0.2); setTimeout(() => playTone(659, 0.1, 'sine', 0.2), 100); setTimeout(() => playTone(784, 0.15, 'sine', 0.2), 200); }
+
+      // ===================== 패턴 정의 =====================
+      const PATTERNS_44 = {
+        horizontal: [
+          ['a1', 'a2', 'a3', 'a4'],
+          ['b1', 'b2', 'b3', 'b4'],
+          ['c1', 'c2', 'c3', 'c4'],
+          ['d1', 'd2', 'd3', 'd4']
+        ],
+        vertical: [
+          ['a1', 'b1', 'c1', 'd1'],
+          ['a2', 'b2', 'c2', 'd2'],
+          ['a3', 'b3', 'c3', 'd3'],
+          ['a4', 'b4', 'c4', 'd4']
+        ],
+        diag_fwd: [
+          ['a1', 'b2', 'c3', 'd4'],
+          ['a4', 'b3', 'c2', 'd1']
+        ],
+        diag_rev: [
+          ['d4', 'c3', 'b2', 'a1'],
+          ['d1', 'c2', 'b3', 'a4']
+        ]
+      };
+
+      const PATTERNS_88 = {
+        horizontal: [
+          ['a1', 'a2', 'a3', 'a4', 'b1', 'b2', 'b3', 'b4'],
+          ['b1', 'b2', 'b3', 'b4', 'c1', 'c2', 'c3', 'c4'],
+          ['c1', 'c2', 'c3', 'c4', 'd1', 'd2', 'd3', 'd4']
+        ],
+        vertical: [
+          ['a1', 'b1', 'c1', 'd1', 'a2', 'b2', 'c2', 'd2'],
+          ['a2', 'b2', 'c2', 'd2', 'a3', 'b3', 'c3', 'd3'],
+          ['a3', 'b3', 'c3', 'd3', 'a4', 'b4', 'c4', 'd4']
+        ],
+        diag_fwd: [
+          ['a1', 'b2', 'c3', 'd4', 'a4', 'b3', 'c2', 'd1'],
+          ['a4', 'b3', 'c2', 'd1', 'a1', 'b2', 'c3', 'd4']
+        ],
+        diag_rev: [
+          ['d4', 'c3', 'b2', 'a1', 'd1', 'c2', 'b3', 'a4'],
+          ['d1', 'c2', 'b3', 'a4', 'd4', 'c3', 'b2', 'a1']
+        ]
+      };
+
+      function getAvailablePatterns() {
+        let arr = [];
+        if (selectedMode === '44') {
+          arr = PATTERNS_44.horizontal.concat(PATTERNS_44.vertical);
+          if (level >= 2) arr = arr.concat(PATTERNS_44.diag_fwd);
+          if (level >= 4) arr = arr.concat(PATTERNS_44.diag_rev);
+        } else {
+          arr = PATTERNS_88.horizontal.concat(PATTERNS_88.vertical);
+          if (level >= 2) arr = arr.concat(PATTERNS_88.diag_fwd);
+          if (level >= 4) arr = arr.concat(PATTERNS_88.diag_rev);
+        }
+        return arr;
+      }
+
+      function choosePattern() {
+        const arr = getAvailablePatterns();
+        let pattern = null;
+        let attempts = 0;
+        do {
+          pattern = arr[Math.floor(Math.random() * arr.length)];
+          attempts++;
+        } while (pattern.join(',') === lastPatternKey && attempts < 30);
+        lastPatternKey = pattern.join(',');
+        return pattern.slice();
+      }
+
+      function getPracticePatterns() {
+        if (selectedMode === '44') {
+          return [
+            ['a1', 'b1', 'c1', 'd1'],
+            ['a2', 'b2', 'c2', 'd2'],
+            ['a3', 'b3', 'c3', 'd3'],
+            ['a4', 'b4', 'c4', 'd4']
+          ];
+        } else {
+          return [
+            ['a1', 'b1', 'c1', 'd1', 'a2', 'b2', 'c2', 'd2'],
+            ['a2', 'b2', 'c2', 'd2', 'a3', 'b3', 'c3', 'd3'],
+            ['a3', 'b3', 'c3', 'd3', 'a4', 'b4', 'c4', 'd4']
+          ];
+        }
+      }
+
+      // ===================== 비주얼 함수 =====================
+      function setPadColor(padId, colorHex) {
+        const pad = padMap[padId];
+        if (pad) pad.padMesh.material.color.setHex(colorHex);
+      }
+
+      function resetPadColor(padId) {
+        const pad = padMap[padId];
+        if (pad) pad.padMesh.material.color.setHex(DEFAULT_COLOR);
+      }
+
+      function pressPad(padId, amount) {
+        const pad = padMap[padId];
+        if (pad) pad.pressY = amount;
+      }
+
+      function activatePad(padId, type) {
+        const pad = padMap[padId];
+        if (!pad) return;
+        switch (type) {
+          case 'guide':
+            setPadColor(padId, GUIDE_COLOR);
+            pressPad(padId, 0.07);
+            break;
+          case 'success':
+            setPadColor(padId, SUCCESS_COLOR);
+            pressPad(padId, 0.09);
+            break;
+          case 'fail':
+            setPadColor(padId, FAIL_COLOR);
+            pressPad(padId, 0.09);
+            break;
+          case 'perfect':
+            setPadColor(padId, PERFECT_COLOR);
+            pressPad(padId, 0.13);
+            break;
+        }
+      }
+
+      function resetAllPads() {
+        pads.forEach(pad => {
+          resetPadColor(pad.id);
+          pad.pressY = 0;
+        });
+      }
+
+      // ===================== 타이머 유틸 =====================
+      function clearGuideTimeouts() {
+        guideTimeouts.forEach(t => clearTimeout(t));
+        guideTimeouts = [];
+      }
+
+      function clearUserTargetTimeouts() {
+        userTargetTimeouts.forEach(t => clearTimeout(t));
+        userTargetTimeouts = [];
+      }
+
+      function clearRoundTimer() {
+        if (roundEndTimer) clearTimeout(roundEndTimer);
+        roundEndTimer = null;
+      }
+
+      function clearAllRoundTimers() {
+        clearGuideTimeouts();
+        clearUserTargetTimeouts();
+        clearRoundTimer();
+      }
+
+      // ===================== 라운드 진행 =====================
+      function startRound(isPractice = false) {
+        clearAllRoundTimers();
+        resetAllPads();
+        roundActive = true;
+        inputPhase = false;
+        userTargetIndex = 0;
+        userTargets = [];
+        currentPattern = isPractice ? practicePatterns[practiceIndex].slice() : choosePattern();
+
+        const nGuide = selectedMode === '44' ? 3 : 6;
+        const nUser = selectedMode === '44' ? 1 : 2;
+        const start = performance.now();
+        roundStartTime = start;
+
+        // 가이드 스케줄
+        for (let i = 0; i < nGuide; i++) {
+          const delay = i * interval;
+          guideTimeouts.push(setTimeout(() => {
+            if (!roundActive) return;
+            const padId = currentPattern[i];
+            activatePad(padId, 'guide');
+            playGuideTick();
+            spawnBeatRing();
+          }, delay));
+        }
+
+        // 유저 목표 설정
+        for (let u = 0; u < nUser; u++) {
+          const targetTime = start + (nGuide + u) * interval;
+          userTargets.push({ padId: currentPattern[nGuide + u], time: targetTime, resolved: false });
+        }
+
+        // 유저 입력 활성화 타이밍
+        const inputEnableDelay = Math.max(0, nGuide * interval - PASS_MS);
+        guideTimeouts.push(setTimeout(() => {
+          if (!roundActive) return;
+          inputPhase = true;
+        }, inputEnableDelay));
+
+        // 유저 타임아웃 설정
+        userTargets.forEach((target, idx) => {
+          const timeoutDelay = target.time + PASS_MS - start;
+          userTargetTimeouts.push(setTimeout(() => {
+            if (!roundActive || state !== 'playing' || isPractice) return;
+            if (inputPhase && userTargetIndex === idx && !target.resolved) {
+              onUserFail();
+              endRound(false);
+            }
+          }, Math.max(0, timeoutDelay)));
+        });
+
+        // 가이드 종료 후 패드 리셋 타이머
+        const guideEndDelay = (nGuide - 1) * interval + interval;
+        guideTimeouts.push(setTimeout(() => {
+          if (!roundActive) return;
+          resetAllPads();
+        }, guideEndDelay));
+      }
+
+      function endRound(success) {
+        if (!roundActive) return;
+        roundActive = false;
+        inputPhase = false;
+        clearAllRoundTimers();
+
+        if (state === 'practice') {
+          practiceIndex++;
+          if (practiceIndex < practiceTotal) {
+            updatePracticeText();
+            startRound(true);
+          } else {
+            finishPractice();
+          }
+          return;
+        }
+
+        if (state !== 'playing') return;
+
+        if (!success) {
+          if (lives <= 0) {
+            gameOver();
+            return;
+          }
+        }
+
+        roundEndTimer = setTimeout(() => {
+          if (state === 'playing') {
+            startRound(false);
+          }
+        }, ROUND_GAP);
+      }
+
+      // ===================== 유저 입력 처리 =====================
+      function handlePadTap(padId, time) {
+        if (state === 'idle' || state === 'gameover') return;
+        if (!roundActive) return;
+
+        if (state === 'practice') {
+          if (!inputPhase || userTargetIndex >= userTargets.length) return;
+          const target = userTargets[userTargetIndex];
+          if (padId === target.padId) {
+            target.resolved = true;
+            userTargetIndex++;
+            activatePad(padId, 'success');
+            playSuccess();
+            if (userTargetIndex >= userTargets.length) {
+              endRound(true);
+            }
+          } else {
+            activatePad(padId, 'fail');
+            playFail();
+          }
+          return;
+        }
+
+        if (state !== 'playing' || !inputPhase || userTargetIndex >= userTargets.length) return;
+
+        const target = userTargets[userTargetIndex];
+        if (target.resolved) return;
+
+        const correctPad = padId === target.padId;
+        const diff = time - target.time;
+
+        if (correctPad && Math.abs(diff) <= PASS_MS) {
+          target.resolved = true;
+          const perfect = Math.abs(diff) <= PERFECT_MS;
+          onUserSuccess(perfect, padId);
+          userTargetIndex++;
+          if (userTargetIndex >= userTargets.length) {
+            endRound(true);
+          }
+        } else {
+          onUserFail();
+          endRound(false);
+        }
+      }
+
+      function onUserSuccess(perfect, padId) {
+        if (state !== 'playing') return;
+        const points = perfect ? 20 : 10;
+        score += points;
+        successCount++;
+        if (successCount >= SUCCESS_PER_LEVEL) {
+          levelUp();
+          successCount = 0;
+        }
+        activatePad(padId, perfect ? 'perfect' : 'success');
+        if (perfect) {
+          playPerfect();
+          triggerPerfectEffects();
+        } else {
+          playSuccess();
+        }
+        updateHUD();
+      }
+
+      function onUserFail() {
+        if (state !== 'playing') return;
+        lives--;
+        playFail();
+        updateHUD();
+        if (lives <= 0) {
+          gameOver();
+        }
+      }
+
+      function levelUp() {
+        level++;
+        if (level <= 3) interval *= 0.85;
+        else if (level <= 6) interval *= 0.90;
+        else if (level <= MAX_LEVEL) interval *= 0.95;
+        interval = Math.round(interval);
+        playLevelUp();
+        updateHUD();
+      }
+
+      function triggerPerfectEffects() {
+        perfectOverlay.classList.add('show');
+        setTimeout(() => perfectOverlay.classList.remove('show'), 400);
+        spawnPerfectSparks();
+        // 화면 골드 플래시
+        const flash = document.createElement('div');
+        flash.style.cssText = 'position:fixed;inset:0;background:rgba(255,210,63,0.4);z-index:35;pointer-events:none;transition:opacity 0.3s;opacity:1;';
+        document.body.appendChild(flash);
+        setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 300); }, 50);
+      }
+
+      // ===================== HUD =====================
+      function updateHUD() {
+        scoreValue.textContent = score;
+        levelValue.textContent = level;
+        hearts.textContent = '❤ '.repeat(Math.max(0, lives)) + '🖤 '.repeat(Math.max(0, 3 - lives)).trim();
+      }
+
+      function updateModeText() {
+        modeText.textContent = selectedMode === '44' ? '4/4 MODE' : '8/8 MODE';
+      }
+
+      // ===================== 게임 시작 =====================
+      function resetGameState() {
+        score = 0;
+        lives = 3;
+        level = 1;
+        successCount = 0;
+        lastPatternKey = null;
+        interval = selectedMode === '44' ? BASE_INTERVAL_44 : BASE_INTERVAL_88;
+        updateHUD();
+      }
+
+      function startPractice() {
+        state = 'practice';
+        practiceIndex = 0;
+        practicePatterns = getPracticePatterns();
+        practiceTotal = practicePatterns.length;
+        updatePracticeText();
+        practiceOverlay.classList.remove('hidden');
+        goOverlay.classList.add('hidden');
+        gameoverOverlay.classList.add('hidden');
+        startRound(true);
+      }
+
+      function updatePracticeText() {
+        practiceText.textContent = `PRACTICE ${practiceIndex + 1} / ${practiceTotal}`;
+      }
+
+      function finishPractice() {
+        practiceOverlay.classList.add('hidden');
+        goOverlay.classList.remove('hidden');
+        setTimeout(() => {
+          goOverlay.classList.add('hidden');
+          state = 'playing';
+          startRound(false);
+        }, 900);
+      }
+
+      function startGame() {
+        if (!selectedMode) return;
+        initAudio();
+        resetGameState();
+        updateModeText();
+        mainMenu.classList.add('hidden');
+        hud.classList.remove('hidden');
+        gameoverOverlay.classList.add('hidden');
+        nicknameOverlay.classList.add('hidden');
+        startPractice();
+      }
+
+      function gameOver() {
+        state = 'gameover';
+        clearAllRoundTimers();
+        roundActive = false;
+        inputPhase = false;
+        gameoverOverlay.classList.remove('hidden');
+        finalScore.textContent = `최종 점수 : ${score}`;
+        finalLevel.textContent = `LEVEL ${level} 에서 종료`;
+        checkRankingQualification();
+      }
+
+      function goHome() {
+        state = 'idle';
+        clearAllRoundTimers();
+        resetAllPads();
+        mainMenu.classList.remove('hidden');
+        hud.classList.add('hidden');
+        gameoverOverlay.classList.add('hidden');
+        practiceOverlay.classList.add('hidden');
+        goOverlay.classList.add('hidden');
+        nicknameOverlay.classList.add('hidden');
+        rankingOverlay.classList.add('hidden');
+      }
+
+      // ===================== 랭킹 =====================
+      async function checkRankingQualification() {
+        if (!window.CNRanking) return;
+        const scores = await window.CNRanking.loadScores(selectedMode);
+        const isTop10 = scores.length < 10 || score > scores[scores.length - 1].score;
+        if (isTop10) {
+          nicknameOverlay.classList.remove('hidden');
+        }
+      }
+
+      async function submitNickname() {
+        const name = nicknameInput.value.trim();
+        if (!name) return;
+        if (window.CNRanking) {
+          await window.CNRanking.submitScore(selectedMode, name, score);
+        }
+        nicknameInput.value = '';
+        nicknameOverlay.classList.add('hidden');
+        showRanking();
+      }
+
+      async function showRanking() {
+        rankingOverlay.classList.remove('hidden');
+        if (!window.CNRanking) {
+          rankingCards.innerHTML = '<div>Firebase 연동이 필요합니다.</div>';
+          return;
+        }
+        const mode44 = await window.CNRanking.loadScores('44');
+        const mode88 = await window.CNRanking.loadScores('88');
+        rankingCards.innerHTML = '';
+        rankingCards.appendChild(createRankCard('4분의 4박자', mode44));
+        rankingCards.appendChild(createRankCard('8분의 8박자', mode88));
+      }
+
+      function createRankCard(title, scores) {
+        const div = document.createElement('div');
+        div.className = 'rank-card';
+        const h3 = document.createElement('h3');
+        h3.textContent = title;
+        div.appendChild(h3);
+        const table = document.createElement('table');
+        table.className = 'rank-table';
+        table.innerHTML = `<tr><th>순위</th><th>이름</th><th>점수</th></tr>`;
+        const medal = ['🥇', '🥈', '🥉'];
+        scores.forEach((s, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${i < 3 ? medal[i] : i + 1}</td><td>${escapeHtml(s.name)}</td><td>${s.score}</td>`;
+          table.appendChild(tr);
+        });
+        div.appendChild(table);
+        return div;
+      }
+
+      function escapeHtml(str) {
+        return String(str).replace(/[&<>"]/g, function(m) {
+          if (m === '&') return '&amp;';
+          if (m === '<') return '&lt;';
+          if (m === '>') return '&gt;';
+          if (m === '"') return '&quot;';
+          return m;
+        });
+      }
+
+      // ===================== 이벤트 =====================
+      modeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedMode = btn.dataset.mode;
+          modeButtons.forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+        });
+      });
+
+      startButton.addEventListener('click', startGame);
+      rankingButton.addEventListener('click', showRanking);
+      restartButton.addEventListener('click', startGame);
+      homeButton.addEventListener('click', goHome);
+      rankingBack.addEventListener('click', () => rankingOverlay.classList.add('hidden'));
+      nicknameSubmit.addEventListener('click', submitNickname);
+      nicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitNickname(); });
+
+      rankingReset.addEventListener('click', async () => {
+        const pw = prompt('관리자 비밀번호를 입력하세요.');
+        if (!pw) return;
+        if (window.CNRanking) {
+          const ok = await window.CNRanking.resetRankings(pw);
+          if (ok) {
+            alert('랭킹이 초기화되었습니다.');
+            showRanking();
+          } else {
+            alert('비밀번호가 올바르지 않습니다.');
+          }
+        }
+      });
+
+      // 레이캐스팅
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+
+      renderer.domElement.addEventListener('pointerdown', (e) => {
+        if (state === 'idle') return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const intersects = raycaster.intersectObjects(padMeshes);
+        if (intersects.length > 0) {
+          const padId = intersects[0].object.userData.padId;
+          handlePadTap(padId, performance.now());
+        }
+      });
+
+      // 리사이즈
+      window.addEventListener('resize', () => {
+        const newAspect = window.innerWidth / window.innerHeight;
+        let nh, nw;
+        if (newAspect > 1) {
+          nh = worldSize / 2;
+          nw = nh * newAspect;
+        } else {
+          nw = worldSize / 2;
+          nh = nw / newAspect;
+        }
+        camera.left = -nw;
+        camera.right = nw;
+        camera.top = nh;
+        camera.bottom = -nh;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // ===================== 애니메이션 =====================
+      const clock = new THREE.Clock();
+
+      function animate() {
+        const dt = clock.getDelta();
+
+        // 패드 눌림 애니메이션
+        pads.forEach(pad => {
+          const target = pad.pressY || 0;
+          pad.currentOffset += (target - pad.currentOffset) * Math.min(1, dt * 15);
+          pad.padMesh.position.z = pad.originalZ - pad.currentOffset;
+        });
+
+        // Beat Ring
+        if (ringActive) {
+          ringScale += dt * 2.5;
+          ringOpacity -= dt * 2.0;
+          beatRing.scale.set(ringScale, ringScale, 1);
+          beatRing.material.opacity = Math.max(0, ringOpacity);
+          if (ringOpacity <= 0) {
+            ringActive = false;
+            beatRing.material.opacity = 0;
+          }
+        }
+
+        // Spark Particles
+        sparkPool.forEach(spark => {
+          if (!spark.active) return;
+          spark.life -= dt;
+          if (spark.life <= 0) {
+            spark.active = false;
+            spark.mesh.visible = false;
+            spark.mesh.material.opacity = 0;
+            return;
+          }
+          spark.mesh.position.x += spark.vx * dt;
+          spark.mesh.position.y += spark.vy * dt;
+          spark.mesh.position.z += spark.vz * dt;
+          spark.mesh.material.opacity = spark.life / spark.maxLife;
+        });
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      // 초기 UI
+      updateHUD();
+      updateModeText();
+      animate();
+    })();
+  </script>
+</body>
+</html>
