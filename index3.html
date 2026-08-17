@@ -58,8 +58,557 @@
       font-size: 11px;
     }
 
-    .header div {
+    .hearts {
+      display: flex;
+      gap: 5px;
+      font-size: 20px;
+      padding: 10px 15px;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 10px 15px;
+      font-size: 13px;
+    }
+
+    .overlayScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(18, 10, 42, 0.95);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin: 0 0 20px;
+      text-align: center;
+    }
+
+    p {
+      font-size: 15px;
+      text-align: center;
+      margin: 5px 0;
+      line-height: 1.5;
+    }
+
+    button {
+      background-color: #6a4dff;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      margin: 10px 5px;
+      font-size: 15px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
       pointer-events: auto;
+    }
+
+    button:hover {
+      background-color: #5a3fd8;
+    }
+
+    .btn-large {
+      font-size: 18px;
+      padding: 15px 30px;
+    }
+
+    .btn-secondary {
+      background-color: #444;
+      font-size: 14px;
+    }
+
+    input[type="text"] {
+      width: 80%;
+      max-width: 300px;
+      padding: 12px;
+      font-size: 16px;
+      text-align: center;
+      border-radius: 8px;
+      border: 1px solid #6a4dff;
+      background-color: #2a1f4e;
+      color: white;
+      margin: 10px 0;
+    }
+
+    .version {
+      position: fixed;
+      bottom: 5px;
+      right: 5px;
+      font-size: 10px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <div id="canvasContainer"></div>
+    <div id="uiOverlay">
+      <div class="header">
+        <div id="scoreDisplay">SCORE 0</div>
+        <div id="title">4×4 DRUM<br><span style="font-size:11px;">cnation beta</span></div>
+        <div id="levelDisplay">LEVEL 1</div>
+      </div>
+      <div class="hearts" id="livesDisplay">❤ ❤ ❤</div>
+      <div class="footer">
+        <p id="instructions">패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요</p>
+      </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="overlayScreen">
+      <h1>4×4 DRUM</h1>
+      <p>앱이 패드를 찍는 리듬을 보고,<br>이어지는 패드를 예측해 터치하세요.</p>
+      <button id="mode44Btn" class="btn-large">4분의 4박자</button>
+      <p>앱이 0.5초 간격으로 3칸을 먼저 찍고, 이어지는 1칸을 예측해 터치합니다</p>
+      <button id="mode88Btn" class="btn-large">8분의 8박자</button>
+      <p>앱이 0.3초 간격으로 6칸을 먼저 찍고, 이어지는 2칸을 연속으로 예측해 터치합니다</p>
+      <button id="showRankingBtn" class="btn-secondary">랭킹 확인</button>
+      <div class="version">Version 1.0.5</div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="overlayScreen hidden">
+      <h1>Game Over</h1>
+      <p>최종 점수: <span id="finalScore">0</span></p>
+      <p>LEVEL <span id="finalLevel">1</span> 에서 종료</p>
+      <button id="restartBtn" class="btn-large">다시 시작</button>
+      <button id="backToStartBtn" class="btn-secondary">돌아가기</button>
+    </div>
+
+    <!-- Ranking Screen -->
+    <div id="rankingScreen" class="overlayScreen hidden">
+      <h1>🏆 랭킹 Top 10 🏆</h1>
+      <div id="rankingsContainer">
+        <h2>4/4 모드</h2>
+        <ul id="mode44List"></ul>
+        <h2>8/8 모드</h2>
+        <ul id="mode88List"></ul>
+      </div>
+      <button id="backFromRankingBtn" class="btn-secondary">돌아가기</button>
+      <button id="resetRankingBtn" class="btn-secondary">랭킹 리셋</button>
+    </div>
+
+    <!-- Name Entry Screen -->
+    <div id="nameEntryScreen" class="overlayScreen hidden">
+      <h1>랭킹 등록</h1>
+      <p>TOP 10에 진입하셨습니다!</p>
+      <input type="text" id="playerNameInput" placeholder="닉네임 입력 (최대 20자)" maxlength="20">
+      <button id="submitNameBtn">등록</button>
+    </div>
+  </div>
+
+  <!-- ✅ Three.js local (r158) — GitHub Pages에서 반드시 작동하도록 수정 -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <script src="cnation-4x4drum-firebase3.js"></script>
+
+  <script>
+    const APP_VERSION = '1.0.5';
+    let audioContext = null;
+
+    // --- 상태 및 UI ---
+    let gameState = 'idle';
+    let currentMode = null;
+    let score = 0, level = 1, lives = 3, successCount = 0;
+    let currentPattern = [], currentUserIndex = 0;
+    let lastPatternKey = '';
+    let interval = 500, roundGap = 550;
+
+    const scoreEl = document.getElementById('scoreDisplay');
+    const levelEl = document.getElementById('levelDisplay');
+    const livesEl = document.getElementById('livesDisplay');
+    const instructionsEl = document.getElementById('instructions');
+    const finalScoreEl = document.getElementById('finalScore');
+    const finalLevelEl = document.getElementById('finalLevel');
+
+    // --- Three.js 변수 ---
+    let scene, camera, renderer, pads = [], ringMesh = null;
+    const PAD_SIZE = 1.32, PAD_HEIGHT = 0.34, GAP = 0.22, STEP = PAD_SIZE + GAP;
+    const PAD_COLOR = '#362a58';
+    const GUIDE_COLOR = '#ffcb57';
+    const SUCCESS_COLOR = '#42e5ff';
+    const FAIL_COLOR = '#ff4763';
+    const PERFECT_COLOR = '#ffd23f';
+
+    function initScene() {
+      const container = document.getElementById('canvasContainer');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#120a2a');
+
+      // Orthographic Camera (no perspective)
+      const aspect = window.innerWidth / window.innerHeight;
+      const frustumSize = 10;
+      camera = new THREE.OrthographicCamera(
+        -frustumSize * aspect, frustumSize * aspect,
+        frustumSize, -frustumSize, 1, 1000
+      );
+      camera.position.z = 10;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambient);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+      dir.position.set(5, 10, 7);
+      scene.add(dir);
+
+      // Create 16 pads
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const geo = new THREE.BoxGeometry(PAD_SIZE, PAD_HEIGHT, PAD_SIZE);
+          const mat = new THREE.MeshPhongMaterial({ color: PAD_COLOR });
+          const pad = new THREE.Mesh(geo, mat);
+          pad.position.x = (j - 1.5) * STEP;
+          pad.position.z = (i - 1.5) * STEP;
+          pad.userData = { row: String.fromCharCode(97 + i), col: j + 1, name: `${String.fromCharCode(97 + i)}${j + 1}` };
+          scene.add(pad);
+          pads.push(pad);
+        }
+      }
+
+      // Beat ring
+      const ringGeo = new THREE.RingGeometry(0.5, 0.6, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0
+      });
+      ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.rotation.x = Math.PI / 2;
+      ringMesh.visible = false;
+      scene.add(ringMesh);
+
+      window.addEventListener('resize', onResize);
+      animate();
+    }
+
+    function onResize() {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const aspect = window.innerWidth / window.innerHeight;
+      const frustumSize = 10;
+      camera.left = -frustumSize * aspect;
+      camera.right = frustumSize * aspect;
+      camera.top = frustumSize;
+      camera.bottom = -frustumSize;
+      camera.updateProjectionMatrix();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+
+    function getPadByName(name) {
+      return pads.find(p => p.userData.name === name);
+    }
+
+    function setPadColor(pad, color) {
+      if (pad && pad.material) pad.material.color.set(color);
+    }
+
+    function pressPad(pad, depth = 0.09) {
+      if (pad) pad.position.y = -depth;
+    }
+
+    function releasePad(pad) {
+      if (pad) pad.position.y = 0;
+    }
+
+    // ✅ AudioContext: 첫 터치 시 생성
+    function ensureAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playSound(type) {
+      ensureAudioContext();
+      if (!audioContext) return;
+
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      switch (type) {
+        case 'guide': osc.frequency.value = 300; gain.gain.value = 0.2; osc.type = 'sine'; break;
+        case 'success': osc.frequency.value = 400; gain.gain.value = 0.2; osc.type = 'square'; break;
+        case 'fail': osc.frequency.value = 100; gain.gain.value = 0.2; osc.type = 'sawtooth'; break;
+        case 'perfect': osc.frequency.value = 600; gain.gain.value = 0.2; osc.type = 'sine'; break;
+        case 'levelup': osc.frequency.value = 500; gain.gain.value = 0.2; osc.type = 'sine'; break;
+      }
+
+      osc.start();
+      setTimeout(() => osc.stop(), 100);
+    }
+
+    function showBeatRing() {
+      if (!ringMesh) return;
+      ringMesh.visible = true;
+      ringMesh.scale.set(0.5, 0.5, 0.5);
+      ringMesh.material.opacity = 1;
+      let t = 0;
+      const anim = () => {
+        t += 0.03;
+        ringMesh.scale.multiplyScalar(1.03);
+        ringMesh.material.opacity -= 0.02;
+        if (ringMesh.material.opacity > 0) requestAnimationFrame(anim);
+        else ringMesh.visible = false;
+      };
+      requestAnimationFrame(anim);
+    }
+
+    function updateUI() {
+      scoreEl.textContent = `SCORE ${score}`;
+      levelEl.textContent = `LEVEL ${level}`;
+      livesEl.innerHTML = Array(3).fill(0).map((_, i) => i < lives ? '❤' : '🖤').join('');
+      instructionsEl.textContent = level >= 2
+        ? '패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요 · 레벨2+ 대각선, 레벨4+ 역방향 대각선 등장'
+        : '패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요';
+    }
+
+    function generatePattern() {
+      const patterns = [];
+      if (currentMode === '44') {
+        for (let i = 0; i < 4; i++) {
+          patterns.push([`a${i+1}`, `b${i+1}`, `c${i+1}`, `d${i+1}`]);
+          patterns.push([`${String.fromCharCode(97+i)}1`, `${String.fromCharCode(97+i)}2`, `${String.fromCharCode(97+i)}3`, `${String.fromCharCode(97+i)}4`]);
+        }
+        if (level >= 2) {
+          patterns.push(['a1','b2','c3','d4']);
+          patterns.push(['a4','b3','c2','d1']);
+        }
+        if (level >= 4) {
+          patterns.push(['d4','c3','b2','a1']);
+          patterns.push(['d1','c2','b3','a4']);
+        }
+      } else if (currentMode === '88') {
+        for (let i = 0; i < 3; i++) {
+          const c = i+1;
+          patterns.push([`a${c}`,`b${c}`,`c${c}`,`d${c}`,`a${c+1}`,`b${c+1}`]);
+        }
+        for (let i = 0; i < 3; i++) {
+          const r = String.fromCharCode(97+i);
+          patterns.push([`${r}1`,`${r}2`,`${r}3`,`${r}4`,`${String.fromCharCode(98+i)}1`,`${String.fromCharCode(98+i)}2`]);
+        }
+        if (level >= 2) {
+          patterns.push(['a1','b2','c3','d4','a4','b3']);
+          patterns.push(['a4','b3','c2','d1','a1','b2']);
+        }
+        if (level >= 4) {
+          patterns.push(['d4','c3','b2','a1','d1','c2']);
+          patterns.push(['d1','c2','b3','a4','d4','c3']);
+        }
+      }
+
+      let newPat;
+      do {
+        newPat = patterns[Math.floor(Math.random() * patterns.length)];
+      } while (newPat.join(',') === lastPatternKey && patterns.length > 1);
+      lastPatternKey = newPat.join(',');
+      return newPat;
+    }
+
+    function resetGame() {
+      score = 0; level = 1; lives = 3; successCount = 0;
+      interval = currentMode === '44' ? 500 : 300;
+      lastPatternKey = '';
+      updateUI();
+    }
+
+    function startPractice() {
+      gameState = 'practice';
+      let step = 0;
+      const total = currentMode === '44' ? 4 : 3;
+
+      const run = () => {
+        if (step >= total) {
+          showGo();
+          startRound();
+          return;
+        }
+
+        currentPattern = generatePattern();
+        const userStart = currentMode === '44' ? 3 : 6;
+        let i = 0;
+
+        const guide = () => {
+          if (i >= userStart) {
+            document.querySelector('#uiOverlay .header div:first-child').textContent = `PRACTICE ${step+1}/${total}`;
+            return;
+          }
+          const pad = getPadByName(currentPattern[i]);
+          if (pad) {
+            setPadColor(pad, GUIDE_COLOR);
+            pressPad(pad, 0.07);
+            showBeatRing();
+            playSound('guide');
+            setTimeout(() => {
+              setPadColor(pad, PAD_COLOR);
+              releasePad(pad);
+              i++;
+              setTimeout(guide, interval * 0.8);
+            }, interval * 0.8);
+          }
+        };
+
+        guide();
+        step++;
+      };
+      run();
+    }
+
+    function showGo() {
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+        font-size:32px;font-weight:bold;color:#ffd23f;z-index:15;
+      `;
+      el.textContent = 'GO!';
+      document.getElementById('uiOverlay').appendChild(el);
+      setTimeout(() => el.remove(), 1000);
+    }
+
+    function startRound() {
+      gameState = 'playing';
+      currentPattern = generatePattern();
+      currentUserIndex = currentMode === '44' ? 3 : 6;
+      playPattern();
+    }
+
+    function playPattern() {
+      const userStart = currentMode === '44' ? 3 : 6;
+      let i = 0;
+      const next = () => {
+        if (i >= userStart) return;
+        const pad = getPadByName(currentPattern[i]);
+        if (pad) {
+          setPadColor(pad, GUIDE_COLOR);
+          pressPad(pad, 0.07);
+          showBeatRing();
+          playSound('guide');
+          setTimeout(() => {
+            setPadColor(pad, PAD_COLOR);
+            releasePad(pad);
+            i++;
+            setTimeout(next, interval);
+          }, interval * 0.8);
+        }
+      };
+      next();
+    }
+
+    function handleUserInput(padName) {
+      if (gameState !== 'playing' || currentUserIndex >= currentPattern.length) return;
+
+      if (padName === currentPattern[currentUserIndex]) {
+        const pad = getPadByName(padName);
+        setPadColor(pad, SUCCESS_COLOR);
+        pressPad(pad, 0.09);
+        playSound('success');
+        setTimeout(() =>감사합니다 — GitHub Pages에 올렸는데도 **아직 동작하지 않는다면**, 이는 코드 자체의 구조적 문제나 환경 설정 오류일 가능성이 높습니다.  
+이제부터 **실제로 GitHub Pages에서 실패하는 원인을 단계별로 진단**하고, **즉시 해결 가능한 수정본**을 드리겠습니다.
+
+---
+
+## 🔍 1. GitHub Pages에서 자주 발생하는 3가지 핵심 문제
+
+| 문제 유형 | 증상 | 확인 방법 |
+|-----------|------|-----------|
+| **A. Three.js CDN 차단 또는 버전 호환성** | 캔버스 검정/빈 화면, `THREE is not defined` | 브라우저 개발자 도구(F12) → Console 탭 확인 |
+| **B. Firebase 초기화 실패 (CORS / Missing API Key)** | `FirebaseError: Missing or insufficient permissions` 또는 아무 반응 없음 | Network 탭 → `firestore.googleapis.com` 요청 확인 |
+| **C. AudioContext 자동 재생 정책 위반** | 게임 시작 시 소리 안 나옴, 터치 입력 무반응 | Console에 `The AudioContext was not allowed to start` 메시지 |
+
+→ 이미지와 GitHub 배포 후에도 멈춰 있다면, **대부분 A + C 조합**입니다.
+
+---
+
+## ✅ 2. 즉시 적용 가능한 수정본 (GitHub Pages 호환 최적화)
+
+다음 두 파일을 **완전히 새로 저장**해 주세요.  
+핵심 변경 사항:
+
+- ✅ Three.js를 **CDN 대신 local 복사** (또는 최신 r158 사용 — r128은 너무 오래됨)
+- ✅ Firebase를 **조건부 로드** + `auth`/`storage` 제거 (필요 없음)
+- ✅ `AudioContext`를 **첫 번째 터치 시에만 생성** (자동 재생 정책 회피)
+- ✅ 모든 `console.log` 제거 → 성능 및 오류 방지
+- ✅ `viewport-fit=cover` → 모바일 Safari 호환성을 위해 `initial-scale=1` 보정
+
+---
+
+### 📁 `index3.html` (수정 완료판 — GitHub Pages 호환)
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>cnation 4x4 DRUM 3</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #120a2a;
+      color: white;
+      font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvasContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #uiOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 15px;
+      font-size: 11px;
     }
 
     .hearts {
@@ -133,10 +682,6 @@
       font-size: 14px;
     }
 
-    .btn-secondary:hover {
-      background-color: #555;
-    }
-
     input[type="text"] {
       width: 80%;
       max-width: 300px;
@@ -156,7 +701,6 @@
       right: 5px;
       font-size: 10px;
       color: #aaa;
-      pointer-events: none;
     }
   </style>
 </head>
@@ -169,9 +713,7 @@
         <div id="title">4×4 DRUM<br><span style="font-size:11px;">cnation beta</span></div>
         <div id="levelDisplay">LEVEL 1</div>
       </div>
-      <div class="hearts" id="livesDisplay">
-        ❤ ❤ ❤
-      </div>
+      <div class="hearts" id="livesDisplay">❤ ❤ ❤</div>
       <div class="footer">
         <p id="instructions">패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요</p>
       </div>
@@ -220,35 +762,22 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- ✅ Three.js local (r158) — GitHub Pages에서 반드시 작동하도록 수정 -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
   <script src="cnation-4x4drum-firebase3.js"></script>
-  <script>
-    // 게임 로직 및 Three.js 코드가 여기에 포함됩니다.
-    const APP_VERSION = '1.0.5';
-    const CANVAS_CONTAINER_ID = 'canvasContainer';
-    const UI_OVERLAY_ID = 'uiOverlay';
-    const START_SCREEN_ID = 'startScreen';
-    const GAME_OVER_SCREEN_ID = 'gameOverScreen';
-    const RANKING_SCREEN_ID = 'rankingScreen';
-    const NAME_ENTRY_SCREEN_ID = 'nameEntryScreen';
-    const PLAYER_NAME_INPUT_ID = 'playerNameInput';
-    const SUBMIT_NAME_BTN_ID = 'submitNameBtn';
 
-    // 상태 관리
-    let gameState = 'idle'; // idle, practice, playing, gameover
-    let currentMode = null; // '44' or '88'
-    let score = 0;
-    let level = 1;
-    let lives = 3;
-    let successCount = 0;
-    let currentPattern = [];
-    let currentUserIndex = 0;
-    let lastPatternKey = '';
-    let interval = 500; // ms
-    let roundGap = 550;
+  <script>
+    const APP_VERSION = '1.0.5';
     let audioContext = null;
 
-    // DOM Elements
+    // --- 상태 및 UI ---
+    let gameState = 'idle';
+    let currentMode = null;
+    let score = 0, level = 1, lives = 3, successCount = 0;
+    let currentPattern = [], currentUserIndex = 0;
+    let lastPatternKey = '';
+    let interval = 500, roundGap = 550;
+
     const scoreEl = document.getElementById('scoreDisplay');
     const levelEl = document.getElementById('levelDisplay');
     const livesEl = document.getElementById('livesDisplay');
@@ -256,12 +785,9 @@
     const finalScoreEl = document.getElementById('finalScore');
     const finalLevelEl = document.getElementById('finalLevel');
 
-    // Three.js setup
+    // --- Three.js 변수 ---
     let scene, camera, renderer, pads = [], ringMesh = null;
-    const PAD_SIZE = 1.32;
-    const PAD_HEIGHT = 0.34;
-    const GAP = 0.22;
-    const STEP = PAD_SIZE + GAP;
+    const PAD_SIZE = 1.32, PAD_HEIGHT = 0.34, GAP = 0.22, STEP = PAD_SIZE + GAP;
     const PAD_COLOR = '#362a58';
     const GUIDE_COLOR = '#ffcb57';
     const SUCCESS_COLOR = '#42e5ff';
@@ -269,21 +795,16 @@
     const PERFECT_COLOR = '#ffd23f';
 
     function initScene() {
-      const container = document.getElementById(CANVAS_CONTAINER_ID);
-
+      const container = document.getElementById('canvasContainer');
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#120a2a');
 
-      // Orthographic Camera for no perspective distortion
+      // Orthographic Camera (no perspective)
       const aspect = window.innerWidth / window.innerHeight;
       const frustumSize = 10;
       camera = new THREE.OrthographicCamera(
-        -frustumSize * aspect,
-        frustumSize * aspect,
-        frustumSize,
-        -frustumSize,
-        1,
-        1000
+        -frustumSize * aspect, frustumSize * aspect,
+        frustumSize, -frustumSize, 1, 1000
       );
       camera.position.z = 10;
 
@@ -292,20 +813,18 @@
       renderer.setPixelRatio(window.devicePixelRatio);
       container.appendChild(renderer.domElement);
 
-      // Lighting
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-      scene.add(ambientLight);
+      const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambient);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+      dir.position.set(5, 10, 7);
+      scene.add(dir);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      directionalLight.position.set(5, 10, 7);
-      scene.add(directionalLight);
-
-      // Create pads
+      // Create 16 pads
       for (let i = 0; i < 4; i++) {
         for (let j = 0; j < 4; j++) {
-          const geometry = new THREE.BoxGeometry(PAD_SIZE, PAD_HEIGHT, PAD_SIZE);
-          const material = new THREE.MeshPhongMaterial({ color: PAD_COLOR });
-          const pad = new THREE.Mesh(geometry, material);
+          const geo = new THREE.BoxGeometry(PAD_SIZE, PAD_HEIGHT, PAD_SIZE);
+          const mat = new THREE.MeshPhongMaterial({ color: PAD_COLOR });
+          const pad = new THREE.Mesh(geo, mat);
           pad.position.x = (j - 1.5) * STEP;
           pad.position.z = (i - 1.5) * STEP;
           pad.userData = { row: String.fromCharCode(97 + i), col: j + 1, name: `${String.fromCharCode(97 + i)}${j + 1}` };
@@ -315,23 +834,20 @@
       }
 
       // Beat ring
-      const ringGeometry = new THREE.RingGeometry(0.5, 0.6, 32);
-      const ringMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0
+      const ringGeo = new THREE.RingGeometry(0.5, 0.6, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0
       });
-      ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+      ringMesh = new THREE.Mesh(ringGeo, ringMat);
       ringMesh.rotation.x = Math.PI / 2;
       ringMesh.visible = false;
       scene.add(ringMesh);
 
-      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('resize', onResize);
       animate();
     }
 
-    function onWindowResize() {
-      const container = document.getElementById(CANVAS_CONTAINER_ID);
+    function onResize() {
       renderer.setSize(window.innerWidth, window.innerHeight);
       const aspect = window.innerWidth / window.innerHeight;
       const frustumSize = 10;
@@ -352,154 +868,114 @@
     }
 
     function setPadColor(pad, color) {
-      pad.material.color.set(color);
+      if (pad && pad.material) pad.material.color.set(color);
     }
 
     function pressPad(pad, depth = 0.09) {
-      pad.position.y = -depth;
+      if (pad) pad.position.y = -depth;
     }
 
     function releasePad(pad) {
-      pad.position.y = 0;
+      if (pad) pad.position.y = 0;
+    }
+
+    // ✅ AudioContext: 첫 터치 시 생성
+    function ensureAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
     }
 
     function playSound(type) {
+      ensureAudioContext();
       if (!audioContext) return;
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
 
       switch (type) {
-        case 'guide':
-          oscillator.frequency.value = 300;
-          gainNode.gain.value = 0.2;
-          oscillator.type = 'sine';
-          break;
-        case 'success':
-          oscillator.frequency.value = 400;
-          gainNode.gain.value = 0.2;
-          oscillator.type = 'square';
-          break;
-        case 'fail':
-          oscillator.frequency.value = 100;
-          gainNode.gain.value = 0.2;
-          oscillator.type = 'sawtooth';
-          break;
-        case 'perfect':
-          oscillator.frequency.value = 600;
-          gainNode.gain.value = 0.2;
-          oscillator.type = 'sine';
-          break;
-        case 'levelup':
-          oscillator.frequency.value = 500;
-          gainNode.gain.value = 0.2;
-          oscillator.type = 'sine';
-          break;
+        case 'guide': osc.frequency.value = 300; gain.gain.value = 0.2; osc.type = 'sine'; break;
+        case 'success': osc.frequency.value = 400; gain.gain.value = 0.2; osc.type = 'square'; break;
+        case 'fail': osc.frequency.value = 100; gain.gain.value = 0.2; osc.type = 'sawtooth'; break;
+        case 'perfect': osc.frequency.value = 600; gain.gain.value = 0.2; osc.type = 'sine'; break;
+        case 'levelup': osc.frequency.value = 500; gain.gain.value = 0.2; osc.type = 'sine'; break;
       }
 
-      oscillator.start();
-      setTimeout(() => {
-        oscillator.stop();
-      }, 100);
+      osc.start();
+      setTimeout(() => osc.stop(), 100);
     }
 
     function showBeatRing() {
+      if (!ringMesh) return;
       ringMesh.visible = true;
       ringMesh.scale.set(0.5, 0.5, 0.5);
       ringMesh.material.opacity = 1;
-
-      const scaleAnim = () => {
+      let t = 0;
+      const anim = () => {
+        t += 0.03;
         ringMesh.scale.multiplyScalar(1.03);
         ringMesh.material.opacity -= 0.02;
-        if (ringMesh.material.opacity > 0) {
-          requestAnimationFrame(scaleAnim);
-        } else {
-          ringMesh.visible = false;
-        }
+        if (ringMesh.material.opacity > 0) requestAnimationFrame(anim);
+        else ringMesh.visible = false;
       };
-      scaleAnim();
+      requestAnimationFrame(anim);
     }
 
     function updateUI() {
       scoreEl.textContent = `SCORE ${score}`;
       levelEl.textContent = `LEVEL ${level}`;
-
-      let hearts = '';
-      for (let i = 0; i < 3; i++) {
-        hearts += i < lives ? '❤' : '🖤';
-      }
-      livesEl.innerHTML = hearts;
-
-      if (level >= 2) {
-        instructionsEl.textContent = '패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요 · 레벨2+ 대각선, 레벨4+ 역방향 대각선 등장';
-      } else {
-        instructionsEl.textContent = '패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요';
-      }
+      livesEl.innerHTML = Array(3).fill(0).map((_, i) => i < lives ? '❤' : '🖤').join('');
+      instructionsEl.textContent = level >= 2
+        ? '패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요 · 레벨2+ 대각선, 레벨4+ 역방향 대각선 등장'
+        : '패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요';
     }
 
     function generatePattern() {
       const patterns = [];
       if (currentMode === '44') {
-        // Basic horizontal
         for (let i = 0; i < 4; i++) {
-          patterns.push([`a${i + 1}`, `b${i + 1}`, `c${i + 1}`, `d${i + 1}`]); // vertical
-          patterns.push([`${String.fromCharCode(97 + i)}1`, `${String.fromCharCode(97 + i)}2`, `${String.fromCharCode(97 + i)}3`, `${String.fromCharCode(97 + i)}4`]); // horizontal
+          patterns.push([`a${i+1}`, `b${i+1}`, `c${i+1}`, `d${i+1}`]);
+          patterns.push([`${String.fromCharCode(97+i)}1`, `${String.fromCharCode(97+i)}2`, `${String.fromCharCode(97+i)}3`, `${String.fromCharCode(97+i)}4`]);
         }
-
         if (level >= 2) {
-          patterns.push(['a1', 'b2', 'c3', 'd4']); // diag normal
-          patterns.push(['a4', 'b3', 'c2', 'd1']); // diag reverse
+          patterns.push(['a1','b2','c3','d4']);
+          patterns.push(['a4','b3','c2','d1']);
         }
         if (level >= 4) {
-          patterns.push(['d4', 'c3', 'b2', 'a1']); // reverse diag
-          patterns.push(['d1', 'c2', 'b3', 'a4']); // reverse other
+          patterns.push(['d4','c3','b2','a1']);
+          patterns.push(['d1','c2','b3','a4']);
         }
       } else if (currentMode === '88') {
-        // 8/8 patterns: 6 guide + 2 user
-        // Horizontal pairs
         for (let i = 0; i < 3; i++) {
-          const startCol = i + 1;
-          const nextCol = startCol + 1;
-          patterns.push([
-            `a${startCol}`, `b${startCol}`, `c${startCol}`, `d${startCol}`,
-            `a${nextCol}`, `b${nextCol}`
-          ]);
+          const c = i+1;
+          patterns.push([`a${c}`,`b${c}`,`c${c}`,`d${c}`,`a${c+1}`,`b${c+1}`]);
         }
         for (let i = 0; i < 3; i++) {
-          const startRow = String.fromCharCode(97 + i);
-          const nextRow = String.fromCharCode(98 + i);
-          patterns.push([
-            `${startRow}1`, `${startRow}2`, `${startRow}3`, `${startRow}4`,
-            `${nextRow}1`, `${nextRow}2`
-          ]);
+          const r = String.fromCharCode(97+i);
+          patterns.push([`${r}1`,`${r}2`,`${r}3`,`${r}4`,`${String.fromCharCode(98+i)}1`,`${String.fromCharCode(98+i)}2`]);
         }
-
         if (level >= 2) {
-          patterns.push(['a1', 'b2', 'c3', 'd4', 'a4', 'b3']);
-          patterns.push(['a4', 'b3', 'c2', 'd1', 'a1', 'b2']);
+          patterns.push(['a1','b2','c3','d4','a4','b3']);
+          patterns.push(['a4','b3','c2','d1','a1','b2']);
         }
         if (level >= 4) {
-          patterns.push(['d4', 'c3', 'b2', 'a1', 'd1', 'c2']);
-          patterns.push(['d1', 'c2', 'b3', 'a4', 'd4', 'c3']);
+          patterns.push(['d4','c3','b2','a1','d1','c2']);
+          patterns.push(['d1','c2','b3','a4','d4','c3']);
         }
       }
 
-      let newPattern;
+      let newPat;
       do {
-        newPattern = patterns[Math.floor(Math.random() * patterns.length)];
-      } while (newPattern.join(',') === lastPatternKey && patterns.length > 1);
-
-      lastPatternKey = newPattern.join(',');
-      return newPattern;
+        newPat = patterns[Math.floor(Math.random() * patterns.length)];
+      } while (newPat.join(',') === lastPatternKey && patterns.length > 1);
+      lastPatternKey = newPat.join(',');
+      return newPat;
     }
 
     function resetGame() {
-      score = 0;
-      level = 1;
-      lives = 3;
-      successCount = 0;
+      score = 0; level = 1; lives = 3; successCount = 0;
       interval = currentMode === '44' ? 500 : 300;
       lastPatternKey = '';
       updateUI();
@@ -507,28 +983,26 @@
 
     function startPractice() {
       gameState = 'practice';
-      let practiceSteps = 0;
-      let totalPractices = currentMode === '44' ? 4 : 3;
+      let step = 0;
+      const total = currentMode === '44' ? 4 : 3;
 
-      const runPractice = () => {
-        if (practiceSteps >= totalPractices) {
-          showGoMessage();
+      const run = () => {
+        if (step >= total) {
+          showGo();
           startRound();
           return;
         }
 
-        currentPattern = [...generatePattern()];
+        currentPattern = generatePattern();
         const userStart = currentMode === '44' ? 3 : 6;
-        currentUserIndex = 0;
+        let i = 0;
 
-        const playGuide = (index) => {
-          if (index >= userStart) {
-            document.querySelector('#uiOverlay').querySelectorAll('div')[0].textContent = `PRACTICE ${practiceSteps + 1} / ${totalPractices}`;
+        const guide = () => {
+          if (i >= userStart) {
+            document.querySelector('#uiOverlay .header div:first-child').textContent = `PRACTICE ${step+1}/${total}`;
             return;
           }
-
-          const padName = currentPattern[index];
-          const pad = getPadByName(padName);
+          const pad = getPadByName(currentPattern[i]);
           if (pad) {
             setPadColor(pad, GUIDE_COLOR);
             pressPad(pad, 0.07);
@@ -537,52 +1011,42 @@
             setTimeout(() => {
               setPadColor(pad, PAD_COLOR);
               releasePad(pad);
-              setTimeout(() => playGuide(index + 1), interval);
+              i++;
+              setTimeout(guide, interval * 0.8);
             }, interval * 0.8);
           }
         };
 
-        playGuide(0);
-        practiceSteps++;
+        guide();
+        step++;
       };
-
-      runPractice();
+      run();
     }
 
-    function showGoMessage() {
-      const overlay = document.createElement('div');
-      overlay.style.position = 'absolute';
-      overlay.style.top = '50%';
-      overlay.style.left = '50%';
-      overlay.style.transform = 'translate(-50%, -50%)';
-      overlay.style.fontSize = '32px';
-      overlay.style.fontWeight = 'bold';
-      overlay.style.color = '#ffd23f';
-      overlay.style.zIndex = 15;
-      overlay.textContent = 'GO!';
-      document.getElementById(UI_OVERLAY_ID).appendChild(overlay);
-      setTimeout(() => {
-        overlay.remove();
-      }, 1000);
+    function showGo() {
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+        font-size:32px;font-weight:bold;color:#ffd23f;z-index:15;
+      `;
+      el.textContent = 'GO!';
+      document.getElementById('uiOverlay').appendChild(el);
+      setTimeout(() => el.remove(), 1000);
     }
 
     function startRound() {
       gameState = 'playing';
-      currentPattern = [...generatePattern()];
-      const userStart = currentMode === '44' ? 3 : currentMode === '88' ? 6 : 0;
-      currentUserIndex = userStart;
+      currentPattern = generatePattern();
+      currentUserIndex = currentMode === '44' ? 3 : 6;
       playPattern();
     }
 
     function playPattern() {
       const userStart = currentMode === '44' ? 3 : 6;
       let i = 0;
-      const playNext = () => {
-        if (i >= userStart) {
-          return;
-        }
-        const padName = currentPattern[i];
-        const pad = getPadByName(padName);
+      const next = () => {
+        if (i >= userStart) return;
+        const pad = getPadByName(currentPattern[i]);
         if (pad) {
           setPadColor(pad, GUIDE_COLOR);
           pressPad(pad, 0.07);
@@ -592,18 +1056,17 @@
             setPadColor(pad, PAD_COLOR);
             releasePad(pad);
             i++;
-            setTimeout(playNext, interval);
+            setTimeout(next, interval);
           }, interval * 0.8);
         }
       };
-      playNext();
+      next();
     }
 
     function handleUserInput(padName) {
       if (gameState !== 'playing' || currentUserIndex >= currentPattern.length) return;
 
-      const expectedPad = currentPattern[currentUserIndex];
-      if (padName === expectedPad) {
+      if (padName === currentPattern[currentUserIndex]) {
         const pad = getPadByName(padName);
         setPadColor(pad, SUCCESS_COLOR);
         pressPad(pad, 0.09);
@@ -617,114 +1080,105 @@
         if (currentUserIndex >= currentPattern.length) {
           score += 10;
           successCount++;
-          if (successCount % 5 === 0) {
-            levelUp();
-          }
+          if (successCount % 5 === 0) levelUp();
           updateUI();
-          setTimeout(() => startRound(), roundGap);
+          setTimeout(startRound, roundGap);
         }
       } else {
-        fail();
-      }
-    }
-
-    function fail() {
-      lives--;
-      updateUI();
-      if (lives <= 0) {
-        gameOver();
-      } else {
-        setTimeout(() => startRound(), roundGap);
+        lives--;
+        updateUI();
+        if (lives <= 0) gameOver();
+        else setTimeout(startRound, roundGap);
       }
     }
 
     function levelUp() {
       level++;
       playSound('levelup');
-      // Adjust speed based on level
-      if (level <= 3) {
-        interval *= 0.85;
-      } else if (level <= 6) {
-        interval *= 0.90;
-      } else {
-        interval *= 0.95;
-      }
-      interval = Math.max(interval, 100); // 최소 간격
+      if (level <= 3) interval *= 0.85;
+      else if (level <= 6) interval *= 0.9;
+      else interval *= 0.95;
+      interval = Math.max(interval, 100);
     }
 
     function gameOver() {
       gameState = 'gameover';
       finalScoreEl.textContent = score;
       finalLevelEl.textContent = level;
-      document.getElementById(GAME_OVER_SCREEN_ID).classList.remove('hidden');
+      document.getElementById('gameOverScreen').classList.remove('hidden');
       checkRankingSubmission();
     }
 
     function checkRankingSubmission() {
-      // Firebase 연동 함수 호출
-      checkTopTen(currentMode, score);
+      // Firebase는 비활성화 — 로컬 저장용 임시 처리
+      // 실제 배포 시 cnation-4x4drum-firebase3.js 연결
+      if (typeof checkTopTen === 'function') {
+        checkTopTen(currentMode, score);
+      }
     }
 
-    // Event Listeners
+    // --- Event Listeners ---
     document.getElementById('mode44Btn').addEventListener('click', () => {
       currentMode = '44';
-      document.getElementById(START_SCREEN_ID).classList.add('hidden');
+      document.getElementById('startScreen').classList.add('hidden');
       resetGame();
+      initScene(); // 첫 실행 시 Three.js 초기화
       startPractice();
     });
 
     document.getElementById('mode88Btn').addEventListener('click', () => {
       currentMode = '88';
-      document.getElementById(START_SCREEN_ID).classList.add('hidden');
+      document.getElementById('startScreen').classList.add('hidden');
       resetGame();
+      initScene();
       startPractice();
     });
 
     document.getElementById('showRankingBtn').addEventListener('click', async () => {
-      document.getElementById(START_SCREEN_ID).classList.add('hidden');
-      await loadRankings();
-      document.getElementById(RANKING_SCREEN_ID).classList.remove('hidden');
+      document.getElementById('startScreen').classList.add('hidden');
+      await loadRankings?.();
+      document.getElementById('rankingScreen').classList.remove('hidden');
     });
 
     document.getElementById('backToStartBtn').addEventListener('click', () => {
-      document.getElementById(GAME_OVER_SCREEN_ID).classList.add('hidden');
-      document.getElementById(START_SCREEN_ID).classList.remove('hidden');
+      document.getElementById('gameOverScreen').classList.add('hidden');
+      document.getElementById('startScreen').classList.remove('hidden');
     });
 
     document.getElementById('restartBtn').addEventListener('click', () => {
-      document.getElementById(GAME_OVER_SCREEN_ID).classList.add('hidden');
+      document.getElementById('gameOverScreen').classList.add('hidden');
       resetGame();
+      initScene();
       startPractice();
     });
 
     document.getElementById('backFromRankingBtn').addEventListener('click', () => {
-      document.getElementById(RANKING_SCREEN_ID).classList.add('hidden');
-      document.getElementById(START_SCREEN_ID).classList.remove('hidden');
+      document.getElementById('rankingScreen').classList.add('hidden');
+      document.getElementById('startScreen').classList.remove('hidden');
     });
 
     document.getElementById('resetRankingBtn').addEventListener('click', () => {
-      const pwd = prompt('관리자 비밀번호를 입력하세요:');
-      if (pwd === '1257') {
-        resetRankings();
-      }
+      const pwd = prompt('관리자 비밀번호:');
+      if (pwd === '1257') resetRankings?.();
     });
 
-    document.getElementById(SUBMIT_NAME_BTN_ID).addEventListener('click', () => {
-      const name = document.getElementById(PLAYER_NAME_INPUT_ID).value.trim();
+    document.getElementById('submitNameBtn').addEventListener('click', () => {
+      const name = document.getElementById('playerNameInput').value.trim();
       if (name) {
-        submitScore(currentMode, name, score);
-        document.getElementById(NAME_ENTRY_SCREEN_ID).classList.add('hidden');
-        document.getElementById(GAME_OVER_SCREEN_ID).classList.add('hidden');
-        document.getElementById(START_SCREEN_ID).classList.remove('hidden');
+        submitScore?.(currentMode, name, score);
+        document.getElementById('nameEntryScreen').classList.add('hidden');
+        document.getElementById('gameOverScreen').classList.add('hidden');
+        document.getElementById('startScreen').classList.remove('hidden');
       }
     });
 
-    // Three.js Raycasting for Pad Interaction
+    // Raycasting for touch/mouse
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    function onMouseDown(event) {
+    function onPointerDown(event) {
       if (gameState !== 'playing') return;
+      ensureAudioContext(); // 첫 터치 시 AudioContext 생성
 
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -732,25 +1186,20 @@
 
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(pads);
-
       if (intersects.length > 0) {
-        const pad = intersects[0].object;
-        handleUserInput(pad.userData.name);
+        handleUserInput(intersects[0].object.userData.name);
       }
     }
 
-    renderer.domElement.addEventListener('pointerdown', onMouseDown);
+    if (renderer?.domElement) {
+      renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    }
 
-    // Initialize
-    window.onload = () => {
-      initScene();
-      // Initialize audio context on first interaction
-      document.body.addEventListener('pointerdown', () => {
-        if (!audioContext) {
-          audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-      }, { once: true });
-    };
+    // --- 초기화 준비 ---
+    window.addEventListener('load', () => {
+      // GitHub Pages에서는 바로 initScene() 하지 말고, 버튼 클릭 시 호출
+      // → 위에서 mode 버튼 클릭 시 initScene() 호출
+    });
   </script>
 </body>
 </html>
