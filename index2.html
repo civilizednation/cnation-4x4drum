@@ -1,1498 +1,832 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0814" />
-  <title>4×4 DRUM · cnation beta</title>
-  <style>
-    :root{
-      --bg:#0b0814;
-      --panel:rgba(24,18,40,.92);
-      --panel2:rgba(13,10,23,.95);
-      --text:#f6f2ff;
-      --muted:#b6aacd;
-      --purple:#7d5cff;
-      --cyan:#42e5ff;
-      --gold:#ffd23f;
-      --red:#ff4763;
-      --guide:#ffcb57;
-      --line:rgba(255,255,255,.10);
-      --safe-top:max(12px, env(safe-area-inset-top));
-      --safe-bottom:max(12px, env(safe-area-inset-bottom));
-    }
-
-    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    html, body {
-      width:100%;
-      height:100%;
-      margin:0;
-      overflow:hidden;
-      background:
-        radial-gradient(circle at 50% 15%, rgba(91,57,142,.18), transparent 35%),
-        linear-gradient(180deg, #110c1e 0%, #090710 100%);
-      color:var(--text);
-      font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;
-      touch-action:none;
-      user-select:none;
-      -webkit-user-select:none;
-    }
-
-    button,input { font:inherit; }
-
-    #app {
-      position:fixed;
-      inset:0;
-      overflow:hidden;
-    }
-
-    #gameScreen {
-      position:absolute;
-      inset:0;
-      display:flex;
-      flex-direction:column;
-      opacity:0;
-      pointer-events:none;
-      transition:opacity .18s ease;
-    }
-
-    #gameScreen.active {
-      opacity:1;
-      pointer-events:auto;
-    }
-
-    #hud {
-      position:relative;
-      z-index:5;
-      display:grid;
-      grid-template-columns:1fr auto 1fr;
-      align-items:start;
-      min-height:112px;
-      padding:var(--safe-top) 18px 8px;
-      pointer-events:none;
-    }
-
-    .stat {
-      min-width:80px;
-      padding-top:4px;
-    }
-    .stat.right { text-align:right; }
-    .stat-label {
-      font-size:11px;
-      font-weight:700;
-      letter-spacing:.16em;
-      color:var(--muted);
-    }
-    .stat-value {
-      margin-top:3px;
-      font-size:22px;
-      font-weight:800;
-      line-height:1;
-    }
-
-    #hudCenter {
-      text-align:center;
-      min-width:140px;
-    }
-    #hudTitle {
-      font-size:15px;
-      line-height:1.15;
-      font-weight:900;
-      letter-spacing:.05em;
-    }
-    #hudBeta {
-      margin-top:3px;
-      font-size:11px;
-      color:#a693cc;
-      font-weight:700;
-    }
-    #hudMode {
-      margin-top:5px;
-      font-size:11px;
-      color:var(--cyan);
-      font-weight:700;
-    }
-
-    #lives {
-      margin-top:5px;
-      text-align:right;
-      font-size:21px;
-      letter-spacing:2px;
-      white-space:nowrap;
-    }
-    #lives .dead {
-      opacity:.18;
-      filter:grayscale(1);
-    }
-
-    #stage {
-      position:relative;
-      flex:1;
-      min-height:0;
-      overflow:hidden;
-    }
-
-    #threeCanvas {
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      display:block;
-    }
-
-    #statusText {
-      position:absolute;
-      z-index:4;
-      top:8px;
-      left:50%;
-      transform:translateX(-50%);
-      min-width:220px;
-      max-width:92%;
-      text-align:center;
-      font-size:14px;
-      font-weight:800;
-      letter-spacing:.03em;
-      text-shadow:0 2px 10px rgba(0,0,0,.65);
-      pointer-events:none;
-    }
-
-    #feedbackText {
-      position:absolute;
-      z-index:8;
-      left:50%;
-      top:44%;
-      transform:translate(-50%,-50%) scale(.82);
-      text-align:center;
-      font-size:34px;
-      font-weight:900;
-      opacity:0;
-      pointer-events:none;
-      text-shadow:0 4px 18px rgba(0,0,0,.55);
-    }
-
-    #feedbackText.show {
-      animation:feedbackPop .55s ease forwards;
-    }
-    #feedbackText.pass { color:var(--cyan); }
-    #feedbackText.fail { color:var(--red); }
-    #feedbackText.perfect {
-      font-size:42px;
-      color:transparent;
-      background:linear-gradient(180deg,#fff7c1 0%,#ffd23f 45%,#ff9e18 100%);
-      -webkit-background-clip:text;
-      background-clip:text;
-      filter:drop-shadow(0 0 16px rgba(255,210,63,.42));
-    }
-
-    @keyframes feedbackPop {
-      0% { opacity:0; transform:translate(-50%,-50%) scale(.72); }
-      18% { opacity:1; transform:translate(-50%,-50%) scale(1.12); }
-      62% { opacity:1; transform:translate(-50%,-50%) scale(1); }
-      100% { opacity:0; transform:translate(-50%,-54%) scale(.96); }
-    }
-
-    #beatRing {
-      position:absolute;
-      z-index:2;
-      left:50%;
-      top:50%;
-      width:48px;
-      height:48px;
-      margin:-24px 0 0 -24px;
-      border:2px solid rgba(255,203,87,.85);
-      border-radius:50%;
-      opacity:0;
-      pointer-events:none;
-    }
-    #beatRing.pulse {
-      animation:ringPulse .42s ease-out forwards;
-    }
-    @keyframes ringPulse {
-      0% { opacity:.75; transform:scale(.45); }
-      100% { opacity:0; transform:scale(5.5); }
-    }
-
-    #bottomGuide {
-      position:relative;
-      z-index:5;
-      min-height:64px;
-      padding:7px 24px var(--safe-bottom);
-      text-align:center;
-      color:#c9bedb;
-      font-size:13px;
-      line-height:1.45;
-      pointer-events:none;
-    }
-
-    #version {
-      position:fixed;
-      z-index:30;
-      right:max(10px, env(safe-area-inset-right));
-      bottom:max(7px, env(safe-area-inset-bottom));
-      font-size:10px;
-      color:rgba(255,255,255,.45);
-      pointer-events:none;
-    }
-
-    .overlay {
-      position:absolute;
-      z-index:20;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:calc(var(--safe-top) + 16px) 18px calc(var(--safe-bottom) + 18px);
-      background:
-        radial-gradient(circle at 50% 26%, rgba(95,60,158,.22), transparent 32%),
-        linear-gradient(180deg, rgba(10,7,17,.92), rgba(6,5,11,.98));
-      opacity:0;
-      pointer-events:none;
-      transition:opacity .18s ease;
-      overflow-y:auto;
-      touch-action:pan-y;
-    }
-    .overlay.active {
-      opacity:1;
-      pointer-events:auto;
-    }
-
-    .panel {
-      width:min(92vw, 480px);
-      border:1px solid var(--line);
-      border-radius:24px;
-      padding:24px 20px;
-      background:linear-gradient(180deg, rgba(29,21,49,.95), rgba(15,11,26,.97));
-      box-shadow:
-        0 22px 60px rgba(0,0,0,.42),
-        inset 0 1px 0 rgba(255,255,255,.05);
-    }
-
-    .title {
-      margin:0;
-      text-align:center;
-      font-size:28px;
-      font-weight:900;
-      letter-spacing:.02em;
-    }
-    .beta {
-      text-align:center;
-      margin-top:4px;
-      color:#9e8fc1;
-      font-size:13px;
-      font-weight:700;
-    }
-    .desc {
-      margin:16px auto 18px;
-      color:#d4cae5;
-      font-size:15px;
-      line-height:1.6;
-      text-align:center;
-    }
-
-    .mode-grid {
-      display:grid;
-      gap:10px;
-      margin:12px 0 16px;
-    }
-
-    .mode-btn {
-      width:100%;
-      border:1px solid rgba(255,255,255,.11);
-      border-radius:16px;
-      background:rgba(255,255,255,.045);
-      color:var(--text);
-      padding:14px 14px 13px;
-      text-align:left;
-      cursor:pointer;
-      transition:.15s ease;
-    }
-    .mode-btn.selected {
-      border-color:rgba(66,229,255,.7);
-      background:linear-gradient(180deg, rgba(66,229,255,.12), rgba(125,92,255,.09));
-      box-shadow:0 0 0 1px rgba(66,229,255,.14) inset;
-    }
-    .mode-name {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      font-size:13px;
-      font-weight:900;
-    }
-    .mode-tag {
-      color:var(--cyan);
-      font-size:11px;
-      font-weight:800;
-    }
-    .mode-detail {
-      display:block;
-      margin-top:7px;
-      color:#bcb0cf;
-      font-size:13px;
-      line-height:1.45;
-      font-weight:500;
-    }
-
-    .primary-btn,.secondary-btn,.danger-btn {
-      width:100%;
-      border:0;
-      border-radius:14px;
-      cursor:pointer;
-      color:white;
-      font-weight:900;
-      transition:transform .1s ease, filter .12s ease;
-    }
-    .primary-btn:active,.secondary-btn:active,.danger-btn:active,.mode-btn:active { transform:scale(.985); }
-    .primary-btn {
-      min-height:52px;
-      margin-top:5px;
-      font-size:18px;
-      background:linear-gradient(135deg,#7754ff,#3fc7ed);
-      box-shadow:0 10px 28px rgba(88,85,220,.25);
-    }
-    .secondary-btn {
-      min-height:44px;
-      margin-top:10px;
-      font-size:14px;
-      background:rgba(255,255,255,.08);
-      border:1px solid rgba(255,255,255,.10);
-    }
-    .danger-btn {
-      min-height:42px;
-      margin-top:10px;
-      font-size:13px;
-      background:rgba(255,71,99,.12);
-      border:1px solid rgba(255,71,99,.30);
-      color:#ff94a5;
-    }
-
-    .maker {
-      margin-top:18px;
-      text-align:center;
-      font-size:12px;
-      color:#807391;
-    }
-
-    .gameover-score {
-      margin:18px 0 4px;
-      text-align:center;
-      font-size:42px;
-      font-weight:900;
-      color:var(--cyan);
-    }
-    .gameover-sub {
-      text-align:center;
-      color:#c9bedb;
-      font-size:15px;
-      margin-bottom:16px;
-    }
-
-    .name-input {
-      width:100%;
-      height:48px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.13);
-      background:rgba(0,0,0,.25);
-      color:white;
-      padding:0 14px;
-      font-size:16px;
-      outline:none;
-      margin:8px 0 2px;
-      user-select:text;
-      -webkit-user-select:text;
-      touch-action:auto;
-    }
-    .name-input:focus {
-      border-color:rgba(66,229,255,.7);
-      box-shadow:0 0 0 2px rgba(66,229,255,.10);
-    }
-
-    .ranking-wrap {
-      width:min(94vw,700px);
-    }
-    .ranking-cards {
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-top:16px;
-    }
-    .ranking-card {
-      border:1px solid var(--line);
-      border-radius:15px;
-      padding:13px 10px;
-      background:rgba(255,255,255,.035);
-    }
-    .ranking-card h3 {
-      margin:0 0 9px;
-      text-align:center;
-      font-size:15px;
-    }
-    .ranking-table {
-      width:100%;
-      border-collapse:collapse;
-      table-layout:fixed;
-      font-size:12px;
-    }
-    .ranking-table th,.ranking-table td {
-      padding:7px 4px;
-      border-bottom:1px solid rgba(255,255,255,.06);
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-    .ranking-table th {
-      color:#9688ad;
-      font-size:11px;
-    }
-    .ranking-table th:nth-child(1),.ranking-table td:nth-child(1) { width:42px; text-align:center; }
-    .ranking-table th:nth-child(3),.ranking-table td:nth-child(3) { width:64px; text-align:right; }
-    .ranking-empty {
-      padding:20px 0;
-      text-align:center;
-      color:#81758e;
-      font-size:12px;
-    }
-    .ranking-note {
-      margin-top:10px;
-      text-align:center;
-      color:#8d819c;
-      font-size:11px;
-      line-height:1.4;
-    }
-
-    #perfectFlash {
-      position:absolute;
-      z-index:7;
-      inset:0;
-      opacity:0;
-      pointer-events:none;
-      background:radial-gradient(circle at center, rgba(255,255,255,.54), rgba(255,210,63,.16) 38%, transparent 72%);
-      mix-blend-mode:screen;
-    }
-    #perfectFlash.flash {
-      animation:perfectFlash .42s ease-out;
-    }
-    @keyframes perfectFlash {
-      0% { opacity:0; }
-      18% { opacity:1; }
-      100% { opacity:0; }
-    }
-
-    #particleLayer {
-      position:absolute;
-      z-index:9;
-      inset:0;
-      pointer-events:none;
-      overflow:hidden;
-    }
-    .spark {
-      position:absolute;
-      width:7px;
-      height:7px;
-      border-radius:50%;
-      background:linear-gradient(180deg,#fff8cf,#ffd23f);
-      box-shadow:0 0 12px rgba(255,210,63,.85);
-      opacity:0;
-      left:50%;
-      top:50%;
-    }
-
-    @media (max-width:520px) {
-      .panel { padding:22px 16px; border-radius:21px; }
-      .ranking-cards { grid-template-columns:1fr; }
-      .ranking-wrap { width:min(94vw,500px); }
-    }
-
-    @media (max-height:680px) {
-      #hud { min-height:96px; padding-left:14px; padding-right:14px; }
-      #bottomGuide { min-height:54px; padding-top:3px; font-size:12px; }
-      .panel { padding-top:17px; padding-bottom:17px; }
-      .desc { margin:10px auto 12px; }
-      .maker { margin-top:12px; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>cnation-4x4drum</title>
+    <style>
+        /* 전반 글씨체 맑은고딕 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: '맑은 고딕', 'Malgun Gothic', sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background: #0a0a1a;
+            overflow: hidden;
+            touch-action: none;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            max-height: 900px;
+            background: #111128;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(0, 20, 255, 0.3);
+        }
+        /* 상단 UI */
+        #ui-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10;
+            color: #eee;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #ui-top .score, #ui-top .level, #ui-top .lives {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        #ui-top .lives span {
+            color: #ff4466;
+            font-size: 1.4rem;
+            line-height: 1;
+        }
+        /* Three.js 캔버스 */
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* 하단 정보 */
+        #ui-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 10;
+            color: #aaa;
+            font-size: 0.8rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+        }
+        #ui-bottom .version {
+            color: #888;
+        }
+        #ui-bottom .creator {
+            color: #aaccff;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        /* 게임오버 오버레이 */
+        #gameover-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 20;
+            color: white;
+        }
+        #gameover-overlay.show {
+            display: flex;
+        }
+        #gameover-overlay h1 {
+            font-size: 3rem;
+            color: #ff4466;
+            text-shadow: 0 0 30px #ff446688;
+            margin-bottom: 10px;
+        }
+        #gameover-overlay .final-score {
+            font-size: 2rem;
+            margin-bottom: 30px;
+            color: #ffcc44;
+        }
+        #gameover-overlay button {
+            padding: 14px 40px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            background: #3366ff;
+            border: none;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 0 20px #3366ff66;
+            transition: 0.2s;
+        }
+        #gameover-overlay button:active {
+            transform: scale(0.95);
+            background: #2255dd;
+        }
+        /* 모드 선택 (간단히) - 일단 4/4 고정, 이후 확장 */
+        #mode-select {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            display: flex;
+            gap: 12px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 16px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+        }
+        #mode-select button {
+            padding: 6px 18px;
+            border: 2px solid #6688ff;
+            background: transparent;
+            color: #ccd9ff;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        #mode-select button.active {
+            background: #6688ff;
+            color: #fff;
+            box-shadow: 0 0 20px #6688ff66;
+        }
+        #mode-select button:active {
+            transform: scale(0.95);
+        }
+        /* 반응형 */
+        @media (max-width: 500px) {
+            #ui-top { font-size: 0.9rem; padding: 8px 12px; }
+            #ui-bottom { font-size: 0.7rem; padding: 4px 12px; }
+            #gameover-overlay h1 { font-size: 2.5rem; }
+        }
+    </style>
 </head>
 <body>
-<div id="app">
-  <section id="gameScreen">
-    <header id="hud">
-      <div class="stat">
-        <div class="stat-label">SCORE</div>
-        <div class="stat-value" id="scoreValue">0</div>
-      </div>
-
-      <div id="hudCenter">
-        <div id="hudTitle">4×4 DRUM</div>
-        <div id="hudBeta">cnation beta</div>
-        <div id="hudMode">4분의 4박자</div>
-      </div>
-
-      <div>
-        <div class="stat right">
-          <div class="stat-label">LEVEL</div>
-          <div class="stat-value" id="levelValue">1</div>
-        </div>
-        <div id="lives"></div>
-      </div>
-    </header>
-
-    <main id="stage">
-      <canvas id="threeCanvas"></canvas>
-      <div id="statusText"></div>
-      <div id="beatRing"></div>
-      <div id="perfectFlash"></div>
-      <div id="particleLayer"></div>
-      <div id="feedbackText"></div>
-    </main>
-
-    <footer id="bottomGuide">
-      패드가 순서대로 켜지는 리듬을 보고, 이어지는 패드를 타이밍에 맞춰 터치하세요 ·
-      레벨2+ 대각선, 레벨4+ 역방향 대각선 등장
-    </footer>
-  </section>
-
-  <section class="overlay active" id="startOverlay">
-    <div class="panel">
-      <h1 class="title">4×4 DRUM</h1>
-      <div class="beta">cnation beta</div>
-      <div class="desc">
-        리듬을 듣고 패드 움직임의 규칙을 읽은 뒤,<br>
-        다음 패드를 정확한 박자에 예측해서 터치하세요.
-      </div>
-
-      <div class="mode-grid">
-        <button class="mode-btn selected" data-mode="44">
-          <span class="mode-name">4분의 4박자 <span class="mode-tag">기본</span></span>
-          <span class="mode-detail">앱이 0.5초 간격으로 3칸을 먼저 찍고, 이어지는 1칸을 예측해 터치합니다.</span>
-        </button>
-
-        <button class="mode-btn" data-mode="88">
-          <span class="mode-name">8분의 8박자 <span class="mode-tag">고급</span></span>
-          <span class="mode-detail">앱이 0.3초 간격으로 6칸을 먼저 찍고, 이어지는 2칸을 연속으로 예측해 터치합니다.</span>
-        </button>
-      </div>
-
-      <button class="primary-btn" id="startBtn">게임 시작</button>
-      <button class="secondary-btn" id="rankingBtn">랭킹 확인</button>
-      <div class="maker">제작자 : cnation(문명국)</div>
+<div id="game-container">
+    <!-- 상단 UI -->
+    <div id="ui-top">
+        <div class="score">🎯 <span id="scoreDisplay">0</span></div>
+        <div class="level">🏆 Lv.<span id="levelDisplay">1</span></div>
+        <div class="lives">❤️ <span id="livesDisplay">❤️❤️❤️</span></div>
     </div>
-  </section>
 
-  <section class="overlay" id="gameOverOverlay">
-    <div class="panel">
-      <h2 class="title">Game Over</h2>
-      <div class="gameover-score" id="finalScore">0</div>
-      <div class="gameover-sub" id="finalLevel">LEVEL 1 에서 종료</div>
-      <div id="rankEntryArea" style="display:none;">
-        <div class="desc" style="margin-bottom:4px;">Top 10 기록입니다. 닉네임을 등록하세요.</div>
-        <input class="name-input" id="nicknameInput" maxlength="20" placeholder="닉네임 (최대 20자)" autocomplete="off" />
-        <button class="secondary-btn" id="submitRankBtn">랭킹 등록</button>
-      </div>
-      <button class="primary-btn" id="restartBtn">다시 시작</button>
-      <button class="secondary-btn" id="homeBtn">돌아가기</button>
+    <!-- Three.js 캔버스 -->
+    <div id="three-canvas"></div>
+
+    <!-- 모드 선택 (임시) -->
+    <div id="mode-select">
+        <button id="mode4" class="active">4/4</button>
+        <button id="mode8">8/8</button>
     </div>
-  </section>
 
-  <section class="overlay" id="rankingOverlay">
-    <div class="panel ranking-wrap">
-      <h2 class="title">🏆 랭킹 Top 10 🏆</h2>
-      <div class="ranking-cards">
-        <div class="ranking-card">
-          <h3>4/4</h3>
-          <div id="ranking44"></div>
-        </div>
-        <div class="ranking-card">
-          <h3>8/8</h3>
-          <div id="ranking88"></div>
-        </div>
-      </div>
-      <div class="ranking-note" id="rankingStatus"></div>
-      <button class="secondary-btn" id="rankingBackBtn">돌아가기</button>
-      <button class="danger-btn" id="resetRankingBtn">랭킹 리셋 (관리자용)</button>
+    <!-- 하단 정보 -->
+    <div id="ui-bottom">
+        <span class="version">v0.1 Beta</span>
+        <span class="creator">제작자 : cnation (문명국)</span>
     </div>
-  </section>
 
-  <div id="version">Version 1.0.5</div>
+    <!-- 게임오버 -->
+    <div id="gameover-overlay">
+        <h1>💀 GAME OVER</h1>
+        <div class="final-score">점수: <span id="finalScore">0</span></div>
+        <button id="restartBtn">다시 시작</button>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
-<script type="module" src="./cnation-4x4drum-firebase2.js"></script>
+<!-- Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-(() => {
-  'use strict';
-
-  const APP_VERSION = '1.0.5';
-
-  const PAD_SIZE = 1.32;
-  const PAD_HEIGHT = 0.34;
-  const GAP = 0.22;
-  const STEP = PAD_SIZE + GAP;
-
-  const PASS_WINDOW = 200;
-  const PERFECT_WINDOW = 50;
-  const ROUND_GAP = 550;
-  const SUCCESS_PER_LEVEL = 5;
-  const INITIAL_LIVES = 3;
-
-  const COLORS = {
-    base: 0x362a58,
-    frame: 0x171021,
-    guide: 0xffcb57,
-    success: 0x42e5ff,
-    fail: 0xff4763,
-    perfect: 0xffd23f,
-    white: 0xffffff
-  };
-
-  const MODES = {
-    '44': { label:'4분의 4박자', interval:500, guideCount:3, userCount:1 },
-    '88': { label:'8분의 8박자', interval:300, guideCount:6, userCount:2 }
-  };
-
-  const PAD_NAMES = [
-    'a1','a2','a3','a4',
-    'b1','b2','b3','b4',
-    'c1','c2','c3','c4',
-    'd1','d2','d3','d4'
-  ];
-
-  const state = {
-    phase:'idle',
-    mode:'44',
-    score:0,
-    level:1,
-    lives:INITIAL_LIVES,
-    successCount:0,
-    interval:MODES['44'].interval,
-    currentPattern:null,
-    lastPatternKey:'',
-    expected:[],
-    expectedIndex:0,
-    inputOpen:false,
-    roundId:0,
-    practiceIndex:0,
-    practicePatterns:[],
-    scheduledTimeouts:new Set(),
-    rankingEligible:false
-  };
-
-  const els = {
-    gameScreen:document.getElementById('gameScreen'),
-    canvas:document.getElementById('threeCanvas'),
-    stage:document.getElementById('stage'),
-    score:document.getElementById('scoreValue'),
-    level:document.getElementById('levelValue'),
-    lives:document.getElementById('lives'),
-    mode:document.getElementById('hudMode'),
-    status:document.getElementById('statusText'),
-    feedback:document.getElementById('feedbackText'),
-    beatRing:document.getElementById('beatRing'),
-    perfectFlash:document.getElementById('perfectFlash'),
-    particleLayer:document.getElementById('particleLayer'),
-    startOverlay:document.getElementById('startOverlay'),
-    gameOverOverlay:document.getElementById('gameOverOverlay'),
-    rankingOverlay:document.getElementById('rankingOverlay'),
-    startBtn:document.getElementById('startBtn'),
-    rankingBtn:document.getElementById('rankingBtn'),
-    restartBtn:document.getElementById('restartBtn'),
-    homeBtn:document.getElementById('homeBtn'),
-    rankingBackBtn:document.getElementById('rankingBackBtn'),
-    resetRankingBtn:document.getElementById('resetRankingBtn'),
-    finalScore:document.getElementById('finalScore'),
-    finalLevel:document.getElementById('finalLevel'),
-    rankEntryArea:document.getElementById('rankEntryArea'),
-    nicknameInput:document.getElementById('nicknameInput'),
-    submitRankBtn:document.getElementById('submitRankBtn'),
-    ranking44:document.getElementById('ranking44'),
-    ranking88:document.getElementById('ranking88'),
-    rankingStatus:document.getElementById('rankingStatus')
-  };
-
-  document.getElementById('version').textContent = `Version ${APP_VERSION}`;
-
-  // ---------- Three.js ----------
-  let renderer, scene, camera, raycaster, pointer;
-  const padMeshes = [];
-  const padByName = new Map();
-  let directionalLight;
-
-  function initThree() {
-    renderer = new THREE.WebGLRenderer({
-      canvas:els.canvas,
-      antialias:true,
-      alpha:true,
-      powerPreference:'high-performance'
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-    scene = new THREE.Scene();
-    raycaster = new THREE.Raycaster();
-    pointer = new THREE.Vector2();
-
-    // 원근 왜곡 없는 정면 수직 시점.
-    camera = new THREE.OrthographicCamera(-4, 4, 4, -4, 0.1, 50);
-    camera.position.set(0, 7.8, 0);
-    camera.up.set(0, 0, -1);
-    camera.lookAt(0, 0, 0);
-
-    scene.add(new THREE.AmbientLight(0x9e88c7, 1.7));
-
-    directionalLight = new THREE.DirectionalLight(0xffffff, 2.1);
-    directionalLight.position.set(-3.5, 7, 4.5);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.set(1024, 1024);
-    directionalLight.shadow.camera.left = -5;
-    directionalLight.shadow.camera.right = 5;
-    directionalLight.shadow.camera.top = 5;
-    directionalLight.shadow.camera.bottom = -5;
-    scene.add(directionalLight);
-
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(11, 11),
-      new THREE.MeshStandardMaterial({ color:0x0c0913, roughness:0.98, metalness:0 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.23;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    createPads();
-    resizeThree();
-    animate();
-  }
-
-  function roundedBoxLikeGeometry(w,h,d) {
-    // 기본 BoxGeometry에 bevel 없이도 조명/프레임으로 전자 드럼 패드 느낌을 냄.
-    return new THREE.BoxGeometry(w,h,d,1,1,1);
-  }
-
-  function createPads() {
-    const gridW = PAD_SIZE*4 + GAP*3;
-    const startX = -gridW/2 + PAD_SIZE/2;
-    const startZ = -gridW/2 + PAD_SIZE/2;
-
-    for (let r=0;r<4;r++) {
-      for (let c=0;c<4;c++) {
-        const name = `${String.fromCharCode(97+r)}${c+1}`;
-        const group = new THREE.Group();
-        const x = startX + c*STEP;
-        const z = startZ + r*STEP;
-        group.position.set(x,0,z);
-
-        const frame = new THREE.Mesh(
-          roundedBoxLikeGeometry(PAD_SIZE+0.10, PAD_HEIGHT*0.52, PAD_SIZE+0.10),
-          new THREE.MeshStandardMaterial({
-            color:COLORS.frame,
-            roughness:.68,
-            metalness:.22
-          })
-        );
-        frame.position.y = -0.09;
-        frame.castShadow = true;
-        frame.receiveShadow = true;
-        group.add(frame);
-
-        const pad = new THREE.Mesh(
-          roundedBoxLikeGeometry(PAD_SIZE, PAD_HEIGHT, PAD_SIZE),
-          new THREE.MeshStandardMaterial({
-            color:COLORS.base,
-            roughness:.48,
-            metalness:.14,
-            emissive:0x0e0920,
-            emissiveIntensity:.28
-          })
-        );
-        pad.position.y = 0.10;
-        pad.castShadow = true;
-        pad.receiveShadow = true;
-        pad.userData.padName = name;
-        pad.userData.homeY = pad.position.y;
-        group.add(pad);
-
-        // 미묘한 상판 라인
-        const top = new THREE.Mesh(
-          new THREE.PlaneGeometry(PAD_SIZE*.79, PAD_SIZE*.79),
-          new THREE.MeshBasicMaterial({
-            color:0x5d477c,
-            transparent:true,
-            opacity:.15
-          })
-        );
-        top.rotation.x = -Math.PI/2;
-        top.position.y = PAD_HEIGHT/2 + 0.105;
-        group.add(top);
-
-        scene.add(group);
-        padMeshes.push(pad);
-        padByName.set(name,pad);
-      }
-    }
-  }
-
-  function resizeThree() {
-    if (!renderer || !camera) return;
-    const rect = els.stage.getBoundingClientRect();
-    const w = Math.max(1, rect.width);
-    const h = Math.max(1, rect.height);
-    renderer.setSize(w,h,false);
-
-    const aspect = w/h;
-    const gridExtent = 3.55;
-    if (aspect >= 1) {
-      camera.left = -gridExtent*aspect;
-      camera.right = gridExtent*aspect;
-      camera.top = gridExtent;
-      camera.bottom = -gridExtent;
-    } else {
-      camera.left = -gridExtent;
-      camera.right = gridExtent;
-      camera.top = gridExtent/aspect;
-      camera.bottom = -gridExtent/aspect;
-    }
-    camera.updateProjectionMatrix();
-  }
-
-  function animate() {
-    renderer.render(scene,camera);
-    requestAnimationFrame(animate);
-  }
-
-  window.addEventListener('resize', resizeThree, {passive:true});
-
-  // ---------- Audio ----------
-  let audioCtx = null;
-
-  function ensureAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  }
-
-  function tone(freq, duration=.07, type='sine', gain=.08, endFreq=null) {
-    if (!audioCtx) return;
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, now);
-    if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(20,endFreq), now+duration);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(gain, now+.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, now+duration);
-    osc.connect(g).connect(audioCtx.destination);
-    osc.start(now);
-    osc.stop(now+duration+.02);
-  }
-
-  const sfx = {
-    guide(){ tone(880,.055,'square',.035,660); },
-    tap(){ tone(620,.045,'triangle',.04,520); },
-    success(){ tone(740,.10,'sine',.06,1060); setTimeout(()=>tone(1040,.09,'sine',.045),45); },
-    fail(){ tone(170,.15,'sawtooth',.05,85); },
-    perfect(){ tone(880,.10,'triangle',.065,1320); setTimeout(()=>tone(1320,.13,'sine',.055,1760),60); },
-    level(){ tone(520,.08,'triangle',.05,780); setTimeout(()=>tone(780,.10,'triangle',.05,1170),75); }
-  };
-
-  // ---------- Pattern definitions ----------
-  const ROWS_FWD = [
-    ['a1','a2','a3','a4'],
-    ['b1','b2','b3','b4'],
-    ['c1','c2','c3','c4'],
-    ['d1','d2','d3','d4']
-  ];
-  const COLS_FWD = [
-    ['a1','b1','c1','d1'],
-    ['a2','b2','c2','d2'],
-    ['a3','b3','c3','d3'],
-    ['a4','b4','c4','d4']
-  ];
-  const DIAG_FWD = [
-    ['a1','b2','c3','d4'],
-    ['a4','b3','c2','d1']
-  ];
-  const DIAG_REV = [
-    ['d4','c3','b2','a1'],
-    ['d1','c2','b3','a4']
-  ];
-
-  const BASIC_88 = [
-    ['a1','a2','a3','a4','b1','b2','b3','b4'],
-    ['b1','b2','b3','b4','c1','c2','c3','c4'],
-    ['c1','c2','c3','c4','d1','d2','d3','d4'],
-    ['a1','b1','c1','d1','a2','b2','c2','d2'],
-    ['a2','b2','c2','d2','a3','b3','c3','d3'],
-    ['a3','b3','c3','d3','a4','b4','c4','d4']
-  ];
-
-  const DIAG_88_FWD = [
-    ['a1','b2','c3','d4','a4','b3','c2','d1'],
-    ['a4','b3','c2','d1','a1','b2','c3','d4']
-  ];
-  const DIAG_88_REV = [
-    ['d4','c3','b2','a1','d1','c2','b3','a4'],
-    ['d1','c2','b3','a4','d4','c3','b2','a1']
-  ];
-
-  function getPatternPool() {
-    let pool;
-    if (state.mode === '44') {
-      pool = [...ROWS_FWD,...COLS_FWD];
-      if (state.level >= 2) pool.push(...DIAG_FWD);
-      if (state.level >= 4) pool.push(...DIAG_REV);
-    } else {
-      pool = [...BASIC_88];
-      if (state.level >= 2) pool.push(...DIAG_88_FWD);
-      if (state.level >= 4) pool.push(...DIAG_88_REV);
-    }
-    return pool;
-  }
-
-  function choosePattern() {
-    const pool = getPatternPool();
-    if (!pool.length) return null;
-
-    let candidates = pool.filter(p => p.join('>') !== state.lastPatternKey);
-    if (!candidates.length) candidates = pool;
-
-    const pattern = candidates[Math.floor(Math.random()*candidates.length)];
-    state.lastPatternKey = pattern.join('>');
-    return [...pattern];
-  }
-
-  function buildPracticePatterns() {
-    if (state.mode === '44') {
-      return COLS_FWD.map(p=>[...p]);
-    }
-    return [
-      ['a1','b1','c1','d1','a2','b2','c2','d2'],
-      ['a2','b2','c2','d2','a3','b3','c3','d3'],
-      ['a3','b3','c3','d3','a4','b4','c4','d4']
-    ];
-  }
-
-  // ---------- Scheduling ----------
-  function schedule(fn, delay) {
-    const id = setTimeout(() => {
-      state.scheduledTimeouts.delete(id);
-      fn();
-    }, Math.max(0, delay));
-    state.scheduledTimeouts.add(id);
-    return id;
-  }
-
-  function clearScheduled() {
-    for (const id of state.scheduledTimeouts) clearTimeout(id);
-    state.scheduledTimeouts.clear();
-  }
-
-  // ---------- Pad visual ----------
-  function setPadColor(name, color, emissive=null, intensity=.8) {
-    const mesh = padByName.get(name);
-    if (!mesh) return;
-    mesh.material.color.setHex(color);
-    mesh.material.emissive.setHex(emissive ?? color);
-    mesh.material.emissiveIntensity = intensity;
-  }
-
-  function resetPad(name) {
-    const mesh = padByName.get(name);
-    if (!mesh) return;
-    mesh.material.color.setHex(COLORS.base);
-    mesh.material.emissive.setHex(0x0e0920);
-    mesh.material.emissiveIntensity = .28;
-    mesh.position.y = mesh.userData.homeY;
-  }
-
-  function flashPad(name, kind='guide', duration=150) {
-    const mesh = padByName.get(name);
-    if (!mesh) return;
-
-    const cfg = {
-      guide:{ color:COLORS.guide, press:.07, emissive:COLORS.guide, intensity:1.25 },
-      success:{ color:COLORS.success, press:.09, emissive:COLORS.success, intensity:1.45 },
-      fail:{ color:COLORS.fail, press:.09, emissive:COLORS.fail, intensity:1.4 },
-      perfect:{ color:COLORS.white, press:.13, emissive:COLORS.white, intensity:1.8 }
-    }[kind];
-
-    setPadColor(name,cfg.color,cfg.emissive,cfg.intensity);
-    mesh.position.y = mesh.userData.homeY - cfg.press;
-
-    if (kind === 'perfect') {
-      schedule(() => {
-        setPadColor(name,COLORS.perfect,COLORS.perfect,1.7);
-      }, 60);
-    }
-
-    schedule(()=>resetPad(name),duration);
-  }
-
-  function pulseBeatRing() {
-    els.beatRing.classList.remove('pulse');
-    void els.beatRing.offsetWidth;
-    els.beatRing.classList.add('pulse');
-  }
-
-  function feedback(text,kind) {
-    els.feedback.textContent = text;
-    els.feedback.className = '';
-    void els.feedback.offsetWidth;
-    els.feedback.classList.add('show',kind);
-  }
-
-  function perfectEffect(padName) {
-    feedback('PERFECT!','perfect');
-    els.perfectFlash.classList.remove('flash');
-    void els.perfectFlash.offsetWidth;
-    els.perfectFlash.classList.add('flash');
-    flashPad(padName,'perfect',310);
-    emitSparks();
-    sfx.perfect();
-  }
-
-  const sparkPool = [];
-  function initSparks() {
-    for (let i=0;i<42;i++) {
-      const el = document.createElement('span');
-      el.className = 'spark';
-      els.particleLayer.appendChild(el);
-      sparkPool.push(el);
-    }
-  }
-
-  function emitSparks() {
-    const count = Math.min(18,sparkPool.length);
-    for (let i=0;i<count;i++) {
-      const el = sparkPool[i];
-      const angle = Math.random()*Math.PI*2;
-      const dist = 65 + Math.random()*115;
-      const dx = Math.cos(angle)*dist;
-      const dy = Math.sin(angle)*dist;
-      el.getAnimations().forEach(a=>a.cancel());
-      el.animate([
-        {opacity:0, transform:'translate(-50%,-50%) scale(.4)'},
-        {opacity:1, offset:.12, transform:'translate(-50%,-50%) scale(1.05)'},
-        {opacity:0, transform:`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.25)`}
-      ],{
-        duration:430+Math.random()*250,
-        easing:'cubic-bezier(.18,.7,.25,1)',
-        fill:'forwards'
-      });
-    }
-  }
-
-  // ---------- UI ----------
-  function updateHUD() {
-    els.score.textContent = state.score;
-    els.level.textContent = state.level;
-    els.mode.textContent = MODES[state.mode].label;
-    els.lives.innerHTML = Array.from({length:INITIAL_LIVES},(_,i) =>
-      `<span class="${i<state.lives?'':'dead'}">❤</span>`
-    ).join('');
-  }
-
-  function showOverlay(target) {
-    [els.startOverlay,els.gameOverOverlay,els.rankingOverlay].forEach(el=>el.classList.remove('active'));
-    if (target) target.classList.add('active');
-  }
-
-  function showGame() {
-    els.gameScreen.classList.add('active');
-    showOverlay(null);
-    requestAnimationFrame(resizeThree);
-  }
-
-  function resetGameState() {
-    clearScheduled();
-    state.phase='practice';
-    state.score=0;
-    state.level=1;
-    state.lives=INITIAL_LIVES;
-    state.successCount=0;
-    state.interval=MODES[state.mode].interval;
-    state.currentPattern=null;
-    state.lastPatternKey='';
-    state.expected=[];
-    state.expectedIndex=0;
-    state.inputOpen=false;
-    state.roundId++;
-    state.practiceIndex=0;
-    state.practicePatterns=buildPracticePatterns();
-    state.rankingEligible=false;
-    PAD_NAMES.forEach(resetPad);
-    updateHUD();
-  }
-
-  function getIntervalAfterLevelUp(current, newLevel) {
-    let factor;
-    if (newLevel <= 3) factor = .85;
-    else if (newLevel <= 6) factor = .90;
-    else factor = .95;
-    return Math.max(90, Math.round(current*factor));
-  }
-
-  // ---------- Round engine ----------
-  function startGame() {
-    ensureAudio();
-    resetGameState();
-    showGame();
-    els.status.textContent = `PRACTICE 1 / ${state.practicePatterns.length}`;
-    schedule(()=>runPracticeRound(),450);
-  }
-
-  function restartGame() {
-    startGame();
-  }
-
-  function runPracticeRound() {
-    if (state.phase !== 'practice') return;
-    if (state.practiceIndex >= state.practicePatterns.length) {
-      els.status.textContent='GO!';
-      sfx.level();
-      schedule(()=>{
-        if (state.phase !== 'practice') return;
-        state.phase='playing';
-        els.status.textContent=`LEVEL ${state.level}`;
-        runMainRound();
-      },800);
-      return;
-    }
-
-    const p = state.practicePatterns[state.practiceIndex];
-    els.status.textContent=`PRACTICE ${state.practiceIndex+1} / ${state.practicePatterns.length}`;
-    runPatternRound(p,true);
-  }
-
-  function runMainRound() {
-    if (state.phase !== 'playing') return;
-    const p = choosePattern();
-    if (!p) return;
-    els.status.textContent=`LEVEL ${state.level}`;
-    runPatternRound(p,false);
-  }
-
-  function runPatternRound(pattern,isPractice) {
-    const mode = MODES[state.mode];
-    const localRound = ++state.roundId;
-    state.currentPattern = pattern;
-    state.expected = [];
-    state.expectedIndex = 0;
-    state.inputOpen = false;
-
-    const start = performance.now() + 120;
-    const guideCount = mode.guideCount;
-
-    for (let i=0;i<guideCount;i++) {
-      const targetAt = start + i*state.interval;
-      schedule(()=>{
-        if (state.roundId !== localRound) return;
-        flashPad(pattern[i],'guide',Math.min(150,Math.max(70,state.interval*.36)));
-        pulseBeatRing();
-        sfx.guide();
-      }, targetAt-performance.now());
-    }
-
-    for (let j=0;j<mode.userCount;j++) {
-      state.expected.push({
-        pad:pattern[guideCount+j],
-        targetTime:start + (guideCount+j)*state.interval,
-        resolved:false
-      });
-    }
-
-    const firstTarget = state.expected[0].targetTime;
-    schedule(()=>{
-      if (state.roundId !== localRound) return;
-      state.inputOpen=true;
-    }, firstTarget - PASS_WINDOW - performance.now());
-
-    // 각 입력이 늦어졌을 때 자동 실패 처리.
-    for (let j=0;j<state.expected.length;j++) {
-      const expectedIndex=j;
-      const deadline=state.expected[j].targetTime + PASS_WINDOW + 15;
-      schedule(()=>{
-        if (state.roundId !== localRound || !state.inputOpen) return;
-        if (state.expectedIndex === expectedIndex && !state.expected[expectedIndex].resolved) {
-          handleInputFailure(isPractice,'MISS');
+    (function(){
+        "use strict";
+
+        // ========== 설정 ==========
+        const BOARD_SIZE = 4;
+        const PAD_NAMES = ['a','b','c','d'];
+        // 패드 좌표: 열(0~3) -> a,b,c,d / 행(0~3) -> 1,2,3,4
+        // Three.js 좌표: x: -1.5 ~ 1.5 (열), y: -1.5 ~ 1.5 (행) (y축 반전)
+
+        // 게임 상태
+        let gameMode = '4'; // '4' or '8'
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        let isPlaying = false;
+        let isGameOver = false;
+
+        // 패턴 관련
+        let patternQueue = []; // [{row, col}, ...]  (4개 또는 8개)
+        let userTargetIndex = 0; // 사용자가 눌러야 할 패턴의 인덱스 (3 또는 6부터)
+        let patternStartTime = 0;
+        let currentStep = 0; // 0: 앱이 표시 중, 1: 사용자 입력 대기
+        let stepTimer = 0;
+        let interval = 0.5; // 초
+        let perfectWindow = 0.2; // 초 (Good)
+        let perfectStrict = 0.05; // Perfect
+
+        // 연습 단계
+        let practicePhase = 0; // 0~3 (a1,b1,c1 -> d1 ...)
+        let practiceActive = true;
+
+        // Three.js
+        let scene, camera, renderer;
+        let pads = []; // 2D array [row][col]
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let padClickables = [];
+
+        // DOM
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const levelDisplay = document.getElementById('levelDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const finalScoreSpan = document.getElementById('finalScore');
+        const gameoverOverlay = document.getElementById('gameover-overlay');
+        const restartBtn = document.getElementById('restartBtn');
+        const mode4Btn = document.getElementById('mode4');
+        const mode8Btn = document.getElementById('mode8');
+
+        // 사운드 (Web Audio)
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
         }
-      },deadline-performance.now());
-    }
-  }
 
-  function handlePadInput(name) {
-    if (!(state.phase==='practice' || state.phase==='playing') || !state.inputOpen) return;
+        function playTone(freq, duration, type='sine', volume=0.3) {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
 
-    const expected = state.expected[state.expectedIndex];
-    if (!expected || expected.resolved) return;
+        function soundTick() { playTone(800, 0.08, 'square', 0.15); }
+        function soundHit() { playTone(1000, 0.15, 'sine', 0.3); }
+        function soundFail() { playTone(300, 0.3, 'sawtooth', 0.2); }
+        function soundPerfect() { playTone(1400, 0.2, 'sine', 0.4); }
 
-    const now = performance.now();
-    const delta = now - expected.targetTime;
-    const abs = Math.abs(delta);
+        // ========== Three.js 초기화 ==========
+        function initThree() {
+            const container = document.getElementById('three-canvas');
+            const w = container.clientWidth || window.innerWidth;
+            const h = container.clientHeight || window.innerHeight;
 
-    sfx.tap();
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111128);
 
-    if (name !== expected.pad || abs > PASS_WINDOW) {
-      flashPad(name,'fail',220);
-      handleInputFailure(state.phase==='practice','FAIL');
-      return;
-    }
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+            camera.position.set(4, 3, 6);
+            camera.lookAt(0, 0, 0);
 
-    expected.resolved=true;
-    const perfect = abs <= PERFECT_WINDOW;
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(w, h);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
 
-    if (perfect) {
-      perfectEffect(name);
-    } else {
-      flashPad(name,'success',180);
-      feedback('PASS','pass');
-      sfx.success();
-    }
+            // 조명
+            const ambient = new THREE.AmbientLight(0x404060);
+            scene.add(ambient);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(3, 5, 4);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+            const backLight = new THREE.DirectionalLight(0x4488ff, 0.5);
+            backLight.position.set(-2, 1, -3);
+            scene.add(backLight);
 
-    // 4/4은 사용자 입력 1회, 8/8은 사용자 입력 2회 각각 독립적으로 점수와 성공 횟수를 계산한다.
-    if (state.phase==='playing') {
-      state.score += perfect ? 20 : 10;
-      state.successCount += 1;
-      updateHUD();
+            // 패드 생성
+            const padSize = 0.8;
+            const gap = 0.15;
+            const total = padSize * 4 + gap * 3;
+            const startX = -total/2 + padSize/2;
+            const startY = -total/2 + padSize/2;
 
-      if (state.successCount % SUCCESS_PER_LEVEL === 0) {
-        levelUp();
-      }
-    }
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                pads[r] = [];
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const x = startX + c * (padSize + gap);
+                    const y = startY + r * (padSize + gap);
+                    // y축 반전 (위쪽이 +y)
+                    const geometry = new THREE.BoxGeometry(padSize, 0.2, padSize);
+                    const material = new THREE.MeshStandardMaterial({
+                        color: 0x3366cc,
+                        emissive: 0x112244,
+                        roughness: 0.3,
+                        metalness: 0.7,
+                        transparent: true,
+                        opacity: 0.9,
+                    });
+                    const cube = new THREE.Mesh(geometry, material);
+                    cube.position.set(x, y, 0);
+                    cube.castShadow = true;
+                    cube.receiveShadow = true;
+                    cube.userData = { row: r, col: c, defaultColor: 0x3366cc, hitColor: 0x44aaff, failColor: 0xff4466, perfectColor: 0xffdd44 };
+                    scene.add(cube);
+                    pads[r][c] = cube;
+                    padClickables.push(cube);
+                }
+            }
 
-    state.expectedIndex++;
+            // 바닥
+            const floorGeo = new THREE.PlaneGeometry(6, 6);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x0a0a1a, roughness: 0.8, metalness: 0.1, transparent: true, opacity: 0.6 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI/2;
+            floor.position.z = -0.2;
+            floor.receiveShadow = true;
+            scene.add(floor);
 
-    if (state.expectedIndex >= state.expected.length) {
-      state.inputOpen=false;
-      if (state.phase==='practice') {
-        state.practiceIndex++;
-        schedule(()=>runPracticeRound(),ROUND_GAP);
-      } else {
-        schedule(()=>runMainRound(),ROUND_GAP);
-      }
-    }
-  }
+            resizeRenderer();
+            window.addEventListener('resize', resizeRenderer);
+        }
 
-  function levelUp() {
-    state.level++;
-    state.interval = getIntervalAfterLevelUp(state.interval,state.level);
-    updateHUD();
-    els.status.textContent=`LEVEL ${state.level} · ${state.interval}ms`;
-    sfx.level();
-    feedback(`LEVEL ${state.level}`,'pass');
-  }
+        function resizeRenderer() {
+            const container = document.getElementById('three-canvas');
+            const w = container.clientWidth || window.innerWidth;
+            const h = container.clientHeight || window.innerHeight;
+            if (renderer) {
+                renderer.setSize(w, h);
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+            }
+        }
 
-  function handleInputFailure(isPractice,label) {
-    if (!(state.phase==='practice' || state.phase==='playing')) return;
+        // ========== 패드 하이라이트 ==========
+        function setPadColor(row, col, color, duration=0) {
+            if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return;
+            const pad = pads[row][col];
+            if (!pad) return;
+            const orig = pad.userData.defaultColor;
+            pad.material.color.setHex(color);
+            if (duration > 0) {
+                setTimeout(() => {
+                    pad.material.color.setHex(orig);
+                }, duration * 1000);
+            }
+        }
 
-    state.inputOpen=false;
-    state.roundId++;
-    feedback(label,'fail');
-    sfx.fail();
+        function flashPad(row, col, color, duration=0.2) {
+            setPadColor(row, col, color, duration);
+        }
 
-    const expected = state.expected[state.expectedIndex];
-    if (expected) flashPad(expected.pad,'fail',240);
+        // ========== 게임 로직 ==========
+        function generatePattern(mode) {
+            // mode: '4' or '8'
+            // 4/4: 4개 패턴, 8/8: 8개 패턴
+            const total = mode === '4' ? 4 : 8;
+            const pattern = [];
+            // 랜덤 방향: 가로, 세로, 대각선(2종), 역방향
+            // 간단히: 시작점 (row, col)과 방향 벡터 (dr, dc)를 랜덤 선택
+            const directions = [];
+            // 가로 (오른쪽)
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c <= 0; c++) {
+                    if (c+3 < 4) directions.push({dr:0, dc:1, startRow:r, startCol:c});
+                }
+            }
+            // 세로 (아래)
+            for (let c = 0; c < 4; c++) {
+                for (let r = 0; r <= 0; r++) {
+                    if (r+3 < 4) directions.push({dr:1, dc:0, startRow:r, startCol:c});
+                }
+            }
+            // 대각선 (↘)
+            for (let r = 0; r <= 0; r++) {
+                for (let c = 0; c <= 0; c++) {
+                    if (r+3 < 4 && c+3 < 4) directions.push({dr:1, dc:1, startRow:r, startCol:c});
+                }
+            }
+            // 대각선 (↙) - 역방향은 나중에 레벨에 따라
+            for (let r = 0; r <= 0; r++) {
+                for (let c = 3; c <= 3; c++) {
+                    if (r+3 < 4 && c-3 >= 0) directions.push({dr:1, dc:-1, startRow:r, startCol:c});
+                }
+            }
 
-    if (isPractice) {
-      // 연습은 생명/점수 변화 없이 같은 연습 패턴을 다시 시도하지 않고 다음 단계로 진행.
-      // 목적은 박자와 규칙에 대한 자연스러운 학습.
-      state.practiceIndex++;
-      schedule(()=>runPracticeRound(),ROUND_GAP+150);
-      return;
-    }
+            // 레벨에 따라 역방향 추가 (레벨 >= 4)
+            if (level >= 4) {
+                // 역가로 (왼쪽)
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 3; c <= 3; c++) {
+                        if (c-3 >= 0) directions.push({dr:0, dc:-1, startRow:r, startCol:c});
+                    }
+                }
+                // 역세로 (위)
+                for (let c = 0; c < 4; c++) {
+                    for (let r = 3; r <= 3; r++) {
+                        if (r-3 >= 0) directions.push({dr:-1, dc:0, startRow:r, startCol:c});
+                    }
+                }
+                // 역대각선 (↗)
+                for (let r = 3; r <= 3; r++) {
+                    for (let c = 0; c <= 0; c++) {
+                        if (r-3 >= 0 && c+3 < 4) directions.push({dr:-1, dc:1, startRow:r, startCol:c});
+                    }
+                }
+                // 역대각선 (↖)
+                for (let r = 3; r <= 3; r++) {
+                    for (let c = 3; c <= 3; c++) {
+                        if (r-3 >= 0 && c-3 >= 0) directions.push({dr:-1, dc:-1, startRow:r, startCol:c});
+                    }
+                }
+            }
 
-    state.lives = Math.max(0,state.lives-1);
-    updateHUD();
+            // 랜덤 선택
+            const dir = directions[Math.floor(Math.random() * directions.length)];
+            for (let i = 0; i < total; i++) {
+                const row = dir.startRow + dir.dr * i;
+                const col = dir.startCol + dir.dc * i;
+                if (row < 0 || row >= 4 || col < 0 || col >= 4) {
+                    // fallback
+                    pattern.push({row: i%4, col: Math.floor(i/4)});
+                } else {
+                    pattern.push({row, col});
+                }
+            }
+            return pattern;
+        }
 
-    if (state.lives <= 0) {
-      schedule(()=>endGame(),620);
-    } else {
-      schedule(()=>runMainRound(),ROUND_GAP+120);
-    }
-  }
+        // 게임 시작 (초기화)
+        function startGame() {
+            score = 0;
+            level = 1;
+            lives = 3;
+            isGameOver = false;
+            practiceActive = true;
+            practicePhase = 0;
+            isPlaying = true;
+            gameoverOverlay.classList.remove('show');
+            updateUI();
 
-  // ---------- Pointer / Raycast ----------
-  els.canvas.addEventListener('pointerdown',(e)=>{
-    e.preventDefault();
-    if (!(state.phase==='practice'||state.phase==='playing')) return;
+            // 패드 색상 초기화
+            for (let r=0; r<4; r++) {
+                for (let c=0; c<4; c++) {
+                    pads[r][c].material.color.setHex(pads[r][c].userData.defaultColor);
+                }
+            }
 
-    const rect = els.canvas.getBoundingClientRect();
-    pointer.x = ((e.clientX-rect.left)/rect.width)*2-1;
-    pointer.y = -((e.clientY-rect.top)/rect.height)*2+1;
-    raycaster.setFromCamera(pointer,camera);
-    const hits = raycaster.intersectObjects(padMeshes,false);
-    if (!hits.length) return;
+            // 연습 시작
+            startPractice();
+        }
 
-    const name = hits[0].object.userData.padName;
-    if (name) handlePadInput(name);
-  },{passive:false});
+        function startPractice() {
+            // 연습: a1,b1,c1 -> d1 (0,0),(1,0),(2,0) -> (3,0)
+            const practicePatterns = [
+                [{row:0,col:0},{row:1,col:0},{row:2,col:0},{row:3,col:0}],
+                [{row:0,col:1},{row:1,col:1},{row:2,col:1},{row:3,col:1}],
+                [{row:0,col:2},{row:1,col:2},{row:2,col:2},{row:3,col:2}],
+                [{row:0,col:3},{row:1,col:3},{row:2,col:3},{row:3,col:3}],
+            ];
+            if (practicePhase >= 4) {
+                practiceActive = false;
+                // 본 게임 시작
+                generateNewPattern();
+                return;
+            }
+            const pat = practicePatterns[practicePhase];
+            patternQueue = pat.slice(0,3); // 처음 3개는 앱이 표시
+            userTargetIndex = 3; // 사용자가 누를 인덱스 (4번째)
+            currentStep = 0; // 앱 표시 단계
+            stepTimer = 0;
+            patternStartTime = performance.now() / 1000;
+            interval = 0.5;
+            // 앱이 첫 3개를 순차적으로 하이라이트
+            let delay = 0;
+            for (let i=0; i<3; i++) {
+                const p = pat[i];
+                setTimeout(() => {
+                    flashPad(p.row, p.col, 0x88ddff, 0.15);
+                    soundTick();
+                }, delay * 1000);
+                delay += interval;
+            }
+            // 3개 후 사용자 대기
+            setTimeout(() => {
+                currentStep = 1; // 사용자 입력 대기
+                // 사용자에게 대기 표시 (선택적으로)
+            }, delay * 1000);
+            // 타임아웃 처리 (너무 오래 기다리면 fail)
+            // 간단히 1초 후에도 입력 없으면 fail 처리 (추후 구현)
+        }
 
-  // ---------- Game over / ranking ----------
-  async function endGame() {
-    clearScheduled();
-    state.phase='gameover';
-    state.inputOpen=false;
-    state.roundId++;
-    els.finalScore.textContent=state.score;
-    els.finalLevel.textContent=`LEVEL ${state.level} 에서 종료`;
-    els.rankEntryArea.style.display='none';
-    els.nicknameInput.value='';
-    state.rankingEligible=false;
+        function generateNewPattern() {
+            // 본 게임 패턴 생성
+            const total = gameMode === '4' ? 4 : 8;
+            const pat = generatePattern(gameMode);
+            patternQueue = pat;
+            // 4/4: 앞 3개 앱, 마지막 1개 사용자
+            // 8/8: 앞 6개 앱, 마지막 2개 사용자
+            const appCount = gameMode === '4' ? 3 : 6;
+            userTargetIndex = appCount;
+            currentStep = 0;
+            stepTimer = 0;
+            patternStartTime = performance.now() / 1000;
+            interval = getIntervalForLevel();
 
-    showOverlay(els.gameOverOverlay);
+            // 앱이 순차적으로 하이라이트
+            let delay = 0;
+            for (let i=0; i<appCount; i++) {
+                const p = pat[i];
+                setTimeout(() => {
+                    flashPad(p.row, p.col, 0x88ddff, 0.15);
+                    soundTick();
+                }, delay * 1000);
+                delay += interval;
+            }
+            // 사용자 대기 시작
+            setTimeout(() => {
+                currentStep = 1;
+                // 사용자 입력 대기
+            }, delay * 1000);
 
-    try {
-      await waitRankingReady();
-      if (window.CNationRanking?.isConfigured?.()) {
-        state.rankingEligible = await window.CNationRanking.qualifies(state.mode,state.score);
-        if (state.rankingEligible) els.rankEntryArea.style.display='block';
-      }
-    } catch (err) {
-      console.warn('Ranking qualification failed:',err);
-    }
-  }
+            // 타임아웃: 너무 오래 기다리면 fail
+            // (추후 구현)
+        }
 
-  function waitRankingReady(timeout=3500) {
-    if (window.CNationRanking) return Promise.resolve();
-    return Promise.race([
-      window.CNationRankingReady || Promise.resolve(),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('ranking init timeout')),timeout))
-    ]);
-  }
+        function getIntervalForLevel() {
+            let base = 0.5;
+            let reduction = 0.15; // 15%
+            if (level >= 4 && level <= 6) reduction = 0.10;
+            else if (level > 6) reduction = 0.05;
+            // 레벨 1은 0.5, 레벨 2는 0.425, ...
+            let interval = base * Math.pow(1 - reduction, level - 1);
+            if (interval < 0.15) interval = 0.15;
+            return interval;
+        }
 
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;');
-  }
+        // 사용자 터치 처리
+        function handlePadClick(row, col) {
+            if (!isPlaying || isGameOver) return;
+            if (currentStep !== 1) return; // 사용자 입력 대기 중이 아님
 
-  function rankingTable(scores) {
-    if (!scores?.length) return '<div class="ranking-empty">등록된 기록이 없습니다.</div>';
-    const medals=['🥇','🥈','🥉'];
-    return `
-      <table class="ranking-table">
-        <thead><tr><th>순위</th><th>이름</th><th>점수</th></tr></thead>
-        <tbody>
-          ${scores.slice(0,10).map((r,i)=>`
-            <tr>
-              <td>${medals[i] || (i+1)}</td>
-              <td>${escapeHtml(r.name)}</td>
-              <td>${Number(r.score)||0}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
-  }
+            // 연습 모드인지 확인
+            if (practiceActive) {
+                // 연습: 정확히 d1, d2, d3, d4 를 순서대로
+                const expected = patternQueue[userTargetIndex];
+                if (expected.row === row && expected.col === col) {
+                    // 성공
+                    flashPad(row, col, 0x44ff88, 0.2);
+                    soundHit();
+                    practicePhase++;
+                    // 다음 연습으로
+                    setTimeout(() => {
+                        startPractice();
+                    }, 300);
+                } else {
+                    flashPad(row, col, 0xff4466, 0.2);
+                    soundFail();
+                    loseLife();
+                }
+                return;
+            }
 
-  async function openRanking() {
-    showOverlay(els.rankingOverlay);
-    els.ranking44.innerHTML='<div class="ranking-empty">불러오는 중...</div>';
-    els.ranking88.innerHTML='<div class="ranking-empty">불러오는 중...</div>';
-    els.rankingStatus.textContent='';
+            // 본 게임
+            const expected = patternQueue[userTargetIndex];
+            const now = performance.now() / 1000;
+            // 마지막 앱 표시 시간을 기준으로 (간단히)
+            // 여기서는 정확한 타이밍을 위해 patternStartTime + (appCount * interval) 사용
+            const appCount = gameMode === '4' ? 3 : 6;
+            const expectedTime = patternStartTime + (appCount * interval);
+            const diff = Math.abs(now - expectedTime);
 
-    try {
-      await waitRankingReady();
-      const api=window.CNationRanking;
-      if (!api?.isConfigured?.()) {
-        els.ranking44.innerHTML=rankingTable([]);
-        els.ranking88.innerHTML=rankingTable([]);
-        els.rankingStatus.textContent='Firebase 설정값을 cnation-4x4drum-firebase2.js에 입력하면 온라인 랭킹이 활성화됩니다.';
-        return;
-      }
+            let isPerfect = false;
+            let isGood = false;
+            if (diff <= perfectStrict) {
+                isPerfect = true;
+                isGood = true;
+            } else if (diff <= perfectWindow) {
+                isGood = true;
+            }
 
-      const [s44,s88] = await Promise.all([api.getTop10('44'),api.getTop10('88')]);
-      els.ranking44.innerHTML=rankingTable(s44);
-      els.ranking88.innerHTML=rankingTable(s88);
-      els.rankingStatus.textContent='모드별 Top 10 · 동점은 기존 기록 우선';
-    } catch(err) {
-      console.error(err);
-      els.ranking44.innerHTML=rankingTable([]);
-      els.ranking88.innerHTML=rankingTable([]);
-      els.rankingStatus.textContent='랭킹을 불러오지 못했습니다.';
-    }
-  }
+            if (row === expected.row && col === expected.col && isGood) {
+                // 성공
+                if (isPerfect) {
+                    flashPad(row, col, 0xffdd44, 0.25);
+                    soundPerfect();
+                    score += 20; // Perfect 보너스
+                    // 금빛 파티클 효과 (간단히 반짝)
+                    createSparkle(row, col);
+                } else {
+                    flashPad(row, col, 0x44aaff, 0.2);
+                    soundHit();
+                    score += 10;
+                }
+                updateUI();
 
-  // ---------- Buttons ----------
-  document.querySelectorAll('.mode-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      state.mode=btn.dataset.mode;
-      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('selected',b===btn));
-      state.interval=MODES[state.mode].interval;
-      updateHUD();
-    });
-  });
+                // 다음 패턴으로
+                userTargetIndex++;
+                if (userTargetIndex >= patternQueue.length) {
+                    // 패턴 완료 -> 레벨업 체크
+                    levelUp();
+                    // 새 패턴 생성
+                    setTimeout(() => {
+                        generateNewPattern();
+                    }, 400);
+                } else {
+                    // 다음 사용자 입력 대기 (이미 currentStep=1 상태 유지)
+                    // 하지만 타이밍을 다시 설정해야 함? 
+                    // 여기서는 간단히 바로 다음 입력을 기다리도록 함.
+                    // 하지만 정확한 타이밍을 위해 약간의 딜레이?
+                    // 현재는 바로 대기
+                }
+            } else {
+                // 실패
+                flashPad(row, col, 0xff4466, 0.2);
+                soundFail();
+                loseLife();
+            }
+        }
 
-  els.startBtn.addEventListener('click',startGame);
-  els.restartBtn.addEventListener('click',restartGame);
+        function levelUp() {
+            level++;
+            updateUI();
+            // 속도 증가는 getIntervalForLevel 에서 계산
+        }
 
-  els.homeBtn.addEventListener('click',()=>{
-    clearScheduled();
-    state.phase='idle';
-    state.roundId++;
-    state.inputOpen=false;
-    els.gameScreen.classList.remove('active');
-    showOverlay(els.startOverlay);
-  });
+        function loseLife() {
+            lives--;
+            updateUI();
+            if (lives <= 0) {
+                gameOver();
+            }
+        }
 
-  els.rankingBtn.addEventListener('click',openRanking);
-  els.rankingBackBtn.addEventListener('click',()=>{
-    if (state.phase==='gameover') showOverlay(els.gameOverOverlay);
-    else showOverlay(els.startOverlay);
-  });
+        function gameOver() {
+            isGameOver = true;
+            isPlaying = false;
+            finalScoreSpan.textContent = score;
+            gameoverOverlay.classList.add('show');
+        }
 
-  els.submitRankBtn.addEventListener('click',async()=>{
-    const name=els.nicknameInput.value.trim();
-    if (!name) {
-      alert('닉네임을 입력해주세요.');
-      return;
-    }
-    try {
-      await waitRankingReady();
-      if (!window.CNationRanking?.isConfigured?.()) {
-        alert('Firebase 설정이 필요합니다.');
-        return;
-      }
-      const saved=await window.CNationRanking.submitScore(state.mode,name,state.score);
-      if (!saved) {
-        alert('현재 점수는 더 이상 Top 10 등록 대상이 아닙니다.');
-      } else {
-        els.rankEntryArea.style.display='none';
-        state.rankingEligible=false;
-        await openRanking();
-      }
-    } catch(err) {
-      console.error(err);
-      alert('랭킹 등록 중 오류가 발생했습니다.');
-    }
-  });
+        function updateUI() {
+            scoreDisplay.textContent = score;
+            levelDisplay.textContent = level;
+            let hearts = '';
+            for (let i=0; i<lives; i++) hearts += '❤️';
+            if (lives === 0) hearts = '💔';
+            livesDisplay.textContent = hearts || '💔';
+        }
 
-  els.resetRankingBtn.addEventListener('click',async()=>{
-    const pw=prompt('관리자 비밀번호를 입력하세요.');
-    if (pw === null) return;
-    try {
-      await waitRankingReady();
-      if (!window.CNationRanking?.isConfigured?.()) {
-        alert('Firebase 설정이 필요합니다.');
-        return;
-      }
-      await window.CNationRanking.resetAll(pw);
-      await openRanking();
-      alert('랭킹이 초기화되었습니다.');
-    } catch(err) {
-      console.error(err);
-      alert(err?.message || '랭킹 초기화에 실패했습니다.');
-    }
-  });
+        // ========== 파티클 (금빛) ==========
+        function createSparkle(row, col) {
+            const pad = pads[row][col];
+            if (!pad) return;
+            const pos = pad.position.clone();
+            const geometry = new THREE.BufferGeometry();
+            const count = 30;
+            const positions = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+            for (let i=0; i<count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 0.2 + Math.random() * 0.5;
+                const xOff = Math.cos(angle) * radius;
+                const yOff = Math.sin(angle) * radius;
+                positions[i*3] = pos.x + xOff;
+                positions[i*3+1] = pos.y + yOff;
+                positions[i*3+2] = pos.z + (Math.random() - 0.5) * 0.3;
+                colors[i*3] = 1;
+                colors[i*3+1] = 0.8 + Math.random() * 0.2;
+                colors[i*3+2] = 0.2 + Math.random() * 0.3;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            const material = new THREE.PointsMaterial({ size: 0.08, vertexColors: true, transparent: true, opacity: 1 });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            let life = 0.6;
+            const interval = setInterval(() => {
+                life -= 0.02;
+                if (life <= 0) {
+                    clearInterval(interval);
+                    scene.remove(particles);
+                    particles.geometry.dispose();
+                    particles.material.dispose();
+                } else {
+                    particles.material.opacity = life;
+                }
+            }, 30);
+        }
 
-  // ---------- Init ----------
-  initSparks();
-  initThree();
-  updateHUD();
-})();
+        // ========== 이벤트 ==========
+        function setupEvents() {
+            const canvas = renderer.domElement;
+            // 터치
+            canvas.addEventListener('touchstart', onTouch, { passive: false });
+            canvas.addEventListener('mousedown', onMouseDown);
+
+            // 모드 버튼
+            mode4Btn.addEventListener('click', function() {
+                gameMode = '4';
+                mode4Btn.classList.add('active');
+                mode8Btn.classList.remove('active');
+                restartGame();
+            });
+            mode8Btn.addEventListener('click', function() {
+                gameMode = '8';
+                mode8Btn.classList.add('active');
+                mode4Btn.classList.remove('active');
+                restartGame();
+            });
+
+            restartBtn.addEventListener('click', function() {
+                restartGame();
+            });
+        }
+
+        function onTouch(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                const rect = renderer.domElement.getBoundingClientRect();
+                const x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+                const y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+                handleRaycast(x, y);
+            }
+        }
+
+        function onMouseDown(e) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            handleRaycast(x, y);
+        }
+
+        function handleRaycast(x, y) {
+            mouse.set(x, y);
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(padClickables);
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                const row = obj.userData.row;
+                const col = obj.userData.col;
+                if (row !== undefined && col !== undefined) {
+                    handlePadClick(row, col);
+                }
+            }
+        }
+
+        function restartGame() {
+            // 게임 재시작
+            gameoverOverlay.classList.remove('show');
+            startGame();
+        }
+
+        // ========== 애니메이션 루프 ==========
+        function animate() {
+            requestAnimationFrame(animate);
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        // ========== 초기화 ==========
+        function init() {
+            initThree();
+            setupEvents();
+            startGame();
+            animate();
+            // 창 크기 변경 시
+            window.addEventListener('resize', resizeRenderer);
+        }
+
+        // DOM 로드 후 실행
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
 </script>
 </body>
 </html>
