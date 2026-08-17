@@ -1,231 +1,175 @@
-// ================================================================
-// cnation 4x4 DRUM – Firebase Firestore 랭킹 모듈
-// Version 1.0.4
-// ================================================================
+/*
+  cnation 4x4 DRUM - Firebase Ranking Adapter
+  Version 1.0.5
 
-(function() {
-    'use strict';
+  Firestore structure:
+    collection: cnation-4x4drum-scores
+      document: mode44
+        { scores: [{ name:"PLAYER", score:1234 }] }
+      document: mode88
+        { scores: [{ name:"PLAYER", score:1234 }] }
 
-    // ------------------------------------------------------------
-    // 1. Firebase 설정 (사용자 환경에 맞게 수정)
-    // ------------------------------------------------------------
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
+  IMPORTANT
+  1) 아래 firebaseConfig 값을 실제 Firebase 프로젝트 값으로 교체해야 온라인 랭킹이 활성화됩니다.
+  2) 관리자 비밀번호를 브라우저 JS에 두는 방식은 Beta 편의를 위한 것이며 보안 방식이 아닙니다.
+     실제 서비스에서는 Firebase Authentication / Cloud Functions 등 서버 측 검증으로 옮기세요.
+*/
 
-    // ------------------------------------------------------------
-    // 2. Firebase 초기화 (CDN 사용)
-    // ------------------------------------------------------------
-    if (typeof firebase === 'undefined') {
-        console.warn('Firebase SDK가 로드되지 않았습니다. CDN을 추가하세요.');
-        return;
+const APP_VERSION = '1.0.5';
+const COLLECTION = 'cnation-4x4drum-scores';
+const ADMIN_PASSWORD = '1257';
+
+const firebaseConfig = {
+  apiKey: '',
+  authDomain: '',
+  projectId: '',
+  storageBucket: '',
+  messagingSenderId: '',
+  appId: ''
+};
+
+let db = null;
+let firestoreFns = null;
+
+function hasFirebaseConfig() {
+  return Boolean(
+    firebaseConfig.apiKey &&
+    firebaseConfig.projectId &&
+    firebaseConfig.appId
+  );
+}
+
+function sanitizeName(name) {
+  return String(name ?? '').trim().slice(0,20);
+}
+
+function sanitizeScores(scores) {
+  if (!Array.isArray(scores)) return [];
+  return scores
+    .map((s,idx)=>({
+      name:sanitizeName(s?.name),
+      score:Number.isFinite(Number(s?.score)) ? Math.max(0,Math.floor(Number(s.score))) : 0,
+      _order:idx
+    }))
+    .filter(s=>s.name)
+    .sort((a,b)=>b.score-a.score || a._order-b._order)
+    .slice(0,10)
+    .map(({name,score})=>({name,score}));
+}
+
+function docNameForMode(mode) {
+  if (String(mode)==='44') return 'mode44';
+  if (String(mode)==='88') return 'mode88';
+  throw new Error(`지원하지 않는 모드입니다: ${mode}`);
+}
+
+async function initFirebase() {
+  if (!hasFirebaseConfig()) {
+    console.info(`[4x4 DRUM ${APP_VERSION}] Firebase config is empty. Online ranking disabled.`);
+    return;
+  }
+
+  const [{ initializeApp }, fs] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js')
+  ]);
+
+  const app = initializeApp(firebaseConfig);
+  db = fs.getFirestore(app);
+  firestoreFns = fs;
+}
+
+async function readScores(mode) {
+  if (!db || !firestoreFns) return [];
+  const ref = firestoreFns.doc(db,COLLECTION,docNameForMode(mode));
+  const snap = await firestoreFns.getDoc(ref);
+  if (!snap.exists()) return [];
+  return sanitizeScores(snap.data()?.scores);
+}
+
+async function getTop10(mode) {
+  return readScores(mode);
+}
+
+async function qualifies(mode, score) {
+  const numericScore = Math.max(0,Math.floor(Number(score)||0));
+  const scores = await readScores(mode);
+  if (scores.length < 10) return true;
+  return numericScore > scores[9].score;
+}
+
+async function submitScore(mode, name, score) {
+  if (!db || !firestoreFns) throw new Error('Firebase가 설정되지 않았습니다.');
+
+  const cleanName = sanitizeName(name);
+  const numericScore = Math.max(0,Math.floor(Number(score)||0));
+
+  if (!cleanName) throw new Error('닉네임이 비어 있습니다.');
+
+  const ref = firestoreFns.doc(db,COLLECTION,docNameForMode(mode));
+
+  return firestoreFns.runTransaction(db,async tx=>{
+    const snap = await tx.get(ref);
+    const current = snap.exists() ? sanitizeScores(snap.data()?.scores) : [];
+
+    // 등록 순간 다시 Top10 여부 판정. 동점은 기존 기록 우선.
+    if (current.length >= 10 && numericScore <= current[9].score) {
+      return false;
     }
 
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-    const db = firebase.firestore();
+    const next = sanitizeScores([
+      ...current,
+      { name:cleanName, score:numericScore }
+    ]);
 
-    const COLLECTION = 'cnation-4x4drum-scores';
-    const DOC_44 = 'mode44';
-    const DOC_88 = 'mode88';
-    const TOP_N = 10;
+    tx.set(ref,{ scores:next },{ merge:false });
+    return true;
+  });
+}
 
-    // ------------------------------------------------------------
-    // 3. 내부 헬퍼
-    // ------------------------------------------------------------
-    function escapeHtml(text) {
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
-    }
+async function resetAll(password) {
+  if (String(password) !== ADMIN_PASSWORD) {
+    throw new Error('관리자 비밀번호가 올바르지 않습니다.');
+  }
+  if (!db || !firestoreFns) {
+    throw new Error('Firebase가 설정되지 않았습니다.');
+  }
 
-    // ------------------------------------------------------------
-    // 4. 랭킹 로드 (UI 표시)
-    // ------------------------------------------------------------
-    window.loadRankingFirebase = function() {
-        const container = document.getElementById('ranking-content');
-        container.innerHTML = '<div style="text-align:center;color:#8a7aaa;">로딩 중...</div>';
+  const ref44 = firestoreFns.doc(db,COLLECTION,'mode44');
+  const ref88 = firestoreFns.doc(db,COLLECTION,'mode88');
 
-        Promise.all([
-            db.collection(COLLECTION).doc(DOC_44).get(),
-            db.collection(COLLECTION).doc(DOC_88).get()
-        ]).then(([snap44, snap88]) => {
-            const data44 = snap44.exists ? snap44.data() : { scores: [] };
-            const data88 = snap88.exists ? snap88.data() : { scores: [] };
+  const batch = firestoreFns.writeBatch(db);
+  batch.set(ref44,{scores:[]},{merge:false});
+  batch.set(ref88,{scores:[]},{merge:false});
+  await batch.commit();
+}
 
-            let html = '';
+window.CNationRankingReady = (async()=>{
+  try {
+    await initFirebase();
 
-            // 4/4
-            html += '<div class="rank-mode-title">🎵 4/4 모드</div>';
-            html += buildRankTable(data44.scores || []);
+    window.CNationRanking = Object.freeze({
+      version:APP_VERSION,
+      isConfigured:()=>Boolean(db && firestoreFns),
+      getTop10,
+      qualifies,
+      submitScore,
+      resetAll
+    });
 
-            // 8/8
-            html += '<div class="rank-mode-title" style="margin-top:16px;">🎵 8/8 모드</div>';
-            html += buildRankTable(data88.scores || []);
+    return window.CNationRanking;
+  } catch(err) {
+    console.error('CNationRanking initialization failed:',err);
 
-            container.innerHTML = html;
-        }).catch(err => {
-            console.error('랭킹 로드 실패:', err);
-            container.innerHTML = '<div style="text-align:center;color:#ff4763;">랭킹을 불러오지 못했습니다.</div>';
-        });
-    };
+    window.CNationRanking = Object.freeze({
+      version:APP_VERSION,
+      isConfigured:()=>false,
+      getTop10:async()=>[],
+      qualifies:async()=>false,
+      submitScore:async()=>{ throw err; },
+      resetAll:async()=>{ throw err; }
+    });
 
-    function buildRankTable(scores) {
-        if (!scores || scores.length === 0) {
-            return '<div class="rank-empty">아직 기록이 없습니다.</div>';
-        }
-
-        // 점수 내림차순 정렬
-        const sorted = [...scores].sort((a, b) => b.score - a.score);
-        const top = sorted.slice(0, TOP_N);
-
-        let html = '<div class="rank-table-wrap"><table class="rank-table"><thead><tr>' +
-            '<th>순위</th><th>이름</th><th style="text-align:right;">점수</th>' +
-            '</tr></thead><tbody>';
-
-        top.forEach((item, i) => {
-            const rank = i + 1;
-            let medal = '';
-            if (rank === 1) medal = '🥇';
-            else if (rank === 2) medal = '🥈';
-            else if (rank === 3) medal = '🥉';
-            else medal = '#' + rank;
-
-            const name = escapeHtml(item.name || '익명');
-            const score = item.score || 0;
-
-            html += '<tr>' +
-                '<td class="rank-num">' + medal + '</td>' +
-                '<td class="rank-name">' + name + '</td>' +
-                '<td class="rank-score">' + score + '</td>' +
-                '</tr>';
-        });
-
-        html += '</tbody></table></div>';
-        return html;
-    }
-
-    // ------------------------------------------------------------
-    // 5. 랭킹 체크 (게임 종료 시 호출)
-    // ------------------------------------------------------------
-    window.checkRankingFirebase = function(mode, score) {
-        const docId = (mode === '44') ? DOC_44 : DOC_88;
-
-        db.collection(COLLECTION).doc(docId).get().then(snap => {
-            let scores = [];
-            if (snap.exists) {
-                const data = snap.data();
-                scores = data.scores || [];
-            }
-
-            // Top 10 진입 가능 여부
-            const sorted = [...scores].sort((a, b) => b.score - a.score);
-            const top = sorted.slice(0, TOP_N);
-
-            let canEnter = false;
-            if (top.length < TOP_N) {
-                canEnter = true;
-            } else {
-                const lowest = top[top.length - 1];
-                if (score > lowest.score) {
-                    canEnter = true;
-                }
-            }
-
-            if (canEnter) {
-                // 닉네임 입력 필요
-                if (typeof window.__game !== 'undefined' && window.__game.onRankingCheck) {
-                    window.__game.onRankingCheck(true);
-                }
-                // 임시 저장
-                window.__pendingRank = { mode, score, docId };
-            } else {
-                // 진입 실패
-                if (typeof window.__game !== 'undefined' && window.__game.onRankingCheck) {
-                    window.__game.onRankingCheck(false);
-                }
-            }
-        }).catch(err => {
-            console.error('랭킹 체크 실패:', err);
-        });
-    };
-
-    // ------------------------------------------------------------
-    // 6. 랭킹 제출 (닉네임 입력 후)
-    // ------------------------------------------------------------
-    window.submitRankingFirebase = function(name) {
-        const pending = window.__pendingRank;
-        if (!pending) {
-            alert('등록할 랭킹 정보가 없습니다.');
-            return;
-        }
-
-        const { mode, score, docId } = pending;
-
-        db.collection(COLLECTION).doc(docId).get().then(snap => {
-            let scores = [];
-            if (snap.exists) {
-                const data = snap.data();
-                scores = data.scores || [];
-            }
-
-            // 새 항목 추가
-            scores.push({ name: name.trim(), score: score });
-
-            // 점수 내림차순 정렬 후 Top 10 유지
-            scores.sort((a, b) => b.score - a.score);
-            scores = scores.slice(0, TOP_N);
-
-            // 저장
-            return db.collection(COLLECTION).doc(docId).set({ scores });
-        }).then(() => {
-            alert('✨ 랭킹 등록 완료!');
-            window.__pendingRank = null;
-            // 닉네임 오버레이 닫기
-            document.getElementById('nick-overlay').classList.remove('active');
-            // 게임오버 화면 표시
-            if (typeof window.__game !== 'undefined' && window.__game.state.status === 'gameover') {
-                document.getElementById('gameover-overlay').classList.add('active');
-            } else {
-                window.__game.goToMenu();
-            }
-        }).catch(err => {
-            console.error('랭킹 저장 실패:', err);
-            alert('랭킹 저장에 실패했습니다.');
-        });
-    };
-
-    // ------------------------------------------------------------
-    // 7. 랭킹 초기화 (관리자)
-    // ------------------------------------------------------------
-    window.resetRankingFirebase = function() {
-        if (!confirm('정말로 모든 랭킹 데이터를 초기화하시겠습니까?')) return;
-
-        Promise.all([
-            db.collection(COLLECTION).doc(DOC_44).set({ scores: [] }),
-            db.collection(COLLECTION).doc(DOC_88).set({ scores: [] })
-        ]).then(() => {
-            alert('✅ 랭킹이 초기화되었습니다.');
-            // 랭킹 화면 새로고침
-            if (typeof window.loadRankingFirebase === 'function') {
-                window.loadRankingFirebase();
-            }
-        }).catch(err => {
-            console.error('초기화 실패:', err);
-            alert('초기화에 실패했습니다.');
-        });
-    };
-
-    console.log('Firebase 랭킹 모듈 로드 완료 (v1.0.4)');
+    return window.CNationRanking;
+  }
 })();
