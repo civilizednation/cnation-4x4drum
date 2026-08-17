@@ -1,336 +1,535 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>cnation-4x4drum</title>
 <style>
-  :root{
-    --bg:#08101c;
-    --panel:#111a28;
-    --panel2:#162236;
-    --text:#f4f7fb;
-    --muted:#aab7c8;
-    --accent:#54a9ff;
-    --danger:#ff5b69;
-    --gold:#ffd76a;
-    --pad:#26374f;
-    --pad-edge:#172438;
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;width:100%;min-height:100%;background:radial-gradient(circle at 50% 0%,#15233a 0,#08101c 48%,#050a12 100%);color:var(--text);font-family:"Malgun Gothic","맑은 고딕",Arial,sans-serif;overflow-x:hidden}
-  button{font-family:inherit}
-  .app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
-  .screen{width:min(100%,520px);min-height:calc(100vh - 36px);position:relative;display:flex;flex-direction:column}
-  .hidden{display:none!important}
-
-  /* title */
-  .title-screen{justify-content:center;align-items:center;text-align:center;padding:30px 18px 64px}
-  .logo{font-size:clamp(30px,8vw,46px);font-weight:900;letter-spacing:-1.2px;text-shadow:0 8px 24px rgba(0,0,0,.45)}
-  .subtitle{margin-top:12px;font-size:16px;color:var(--muted);line-height:1.6}
-  .mode-box{width:100%;margin-top:34px;display:grid;gap:14px}
-  .mode-btn,.start-btn,.back-btn{border:0;border-radius:18px;color:#fff;font-weight:800;font-size:18px;padding:17px 18px;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.14)}
-  .mode-btn{background:linear-gradient(180deg,#274d78,#173653)}
-  .mode-btn.active{outline:3px solid rgba(84,169,255,.82);background:linear-gradient(180deg,#326aa8,#1b4773)}
-  .start-btn{margin-top:18px;background:linear-gradient(180deg,#21a6ff,#1174c4)}
-  .title-note{margin-top:20px;color:#94a7be;font-size:14px;line-height:1.55}
-  .title-footer{position:absolute;left:0;right:0;bottom:4px;min-height:24px;color:#90a0b5;font-size:12px;pointer-events:none}
-  .creator{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap}
-  .version{position:absolute;right:0}
-
-  /* game */
-  .game-screen{padding:6px 0 18px}
-  .hud{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
-  .hud-card{background:rgba(17,26,40,.88);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 8px;text-align:center;box-shadow:0 8px 18px rgba(0,0,0,.22)}
-  .hud-label{font-size:12px;color:#9fb0c3;font-weight:700;margin-bottom:3px}
-  .hud-value{font-size:20px;font-weight:900}
-  .status{height:50px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:16px;font-weight:800;color:#dfe9f7;padding:6px 10px}
-  .progress{height:6px;background:#132033;border-radius:99px;overflow:hidden;margin:0 8px 12px}
-  .progress>div{height:100%;width:0;background:linear-gradient(90deg,#45a8ff,#84d8ff);transition:width .25s ease}
-  .board-wrap{position:relative;width:100%;aspect-ratio:1/1;max-height:72vh;margin:auto;display:flex;align-items:center;justify-content:center;perspective:none}
-  .board{position:relative;width:94%;height:94%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:10px;padding:10px;border-radius:26px;background:linear-gradient(180deg,#182439,#0d1624);box-shadow:0 22px 46px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.06);transform:none}
-  #threeBoard{position:absolute;inset:10px;width:calc(100% - 20px);height:calc(100% - 20px);pointer-events:none;z-index:0}
-  .pad{position:relative;z-index:2;border:0;border-radius:18px;background:rgba(255,255,255,.015);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);color:#9db0c6;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;user-select:none;transition:transform .06s ease,filter .08s ease,background .08s ease,box-shadow .08s ease}
-  .pad::after{content:"";position:absolute;inset:5px;border-radius:14px;border:1px solid rgba(255,255,255,.035);pointer-events:none}
-  .pad.demo{background:linear-gradient(180deg,#67b9ff,#2d83cd);box-shadow:0 6px 0 #145287,0 10px 20px rgba(35,138,230,.35),0 0 26px rgba(65,168,255,.32);transform:translateY(2px)}
-  .pad.success{background:linear-gradient(180deg,#75d0ff,#2c9eea);box-shadow:0 5px 0 #19659c,0 0 30px rgba(73,188,255,.75);transform:translateY(3px) scale(.985)}
-  .pad.fail{background:linear-gradient(180deg,#ff7d89,#df394a);box-shadow:0 5px 0 #861d2a,0 0 30px rgba(255,68,88,.68);transform:translateY(3px) scale(.985)}
-  .pad.perfect{background:linear-gradient(180deg,#fff3a8,#ffc94b 45%,#d99314);color:#523600;box-shadow:0 5px 0 #8c5900,0 0 20px rgba(255,208,70,.85),0 0 42px rgba(255,222,103,.56);transform:translateY(3px) scale(.985)}
-  .gold-spark{position:absolute;width:7px;height:7px;border-radius:50%;background:#ffe48a;box-shadow:0 0 10px #ffd457;pointer-events:none;z-index:10;animation:spark .62s ease-out forwards}
-  @keyframes spark{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}}
-  .bottom-bar{display:flex;justify-content:center;margin-top:12px}
-  .back-btn{padding:12px 22px;font-size:15px;background:#1b2a3f}
-
-  /* game over */
-  .over-screen{justify-content:center;align-items:center;text-align:center;padding:30px}
-  .over-title{font-size:38px;font-weight:900}
-  .over-score{margin-top:16px;font-size:22px;font-weight:800;color:#83c8ff}
-  .over-sub{margin-top:8px;color:#a9b7c7}
-  .over-actions{width:100%;margin-top:28px;display:grid;gap:12px}
-
-  @media (max-height:700px){
-    .app{padding:8px}.screen{min-height:calc(100vh - 16px)}.status{height:42px}.board{gap:8px;padding:8px}.hud-card{padding:7px 6px}.hud-value{font-size:18px}
-  }
+body {
+margin: 0;
+padding: 0;
+overflow: hidden;
+background-color: #111;
+font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+user-select: none;
+touch-action: none;
+}
+#cnation-canvas-container {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+}
+#cnation-ui-layer {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+display: flex;
+flex-direction: column;
+justify-content: space-between;
+}
+#cnation-hud {
+display: none;
+justify-content: space-between;
+padding: 20px;
+color: white;
+font-size: 24px;
+font-weight: bold;
+text-shadow: 2px 2px 4px #000;
+}
+#cnation-title-screen {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0, 0, 0, 0.85);
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+pointer-events: auto;
+}
+h1 {
+color: #fff;
+font-size: 48px;
+margin-bottom: 50px;
+font-weight: bold;
+text-shadow: 0 0 10px #0088ff;
+}
+.cnation-btn {
+background: #333;
+color: #fff;
+border: 2px solid #0088ff;
+padding: 15px 40px;
+font-size: 24px;
+font-weight: bold;
+border-radius: 10px;
+margin: 10px;
+font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+cursor: pointer;
+}
+.cnation-btn:active {
+background: #0088ff;
+}
+#cnation-footer {
+position: absolute;
+bottom: 20px;
+width: 100%;
+display: flex;
+justify-content: space-between;
+padding: 0 20px;
+box-sizing: border-box;
+color: #aaa;
+font-size: 16px;
+font-weight: bold;
+}
+#cnation-message {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+color: #fff;
+font-size: 36px;
+font-weight: bold;
+text-shadow: 2px 2px 5px #000;
+display: none;
+}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<div class="app">
-  <main class="screen title-screen" id="titleScreen">
-    <div class="logo">cnation-4x4drum</div>
-    <div class="subtitle">규칙을 듣고 마지막 박자를 완성하는<br>4×4 모바일 리듬 게임</div>
-    <div class="mode-box">
-      <button class="mode-btn active" data-mode="4">4/4 박자 모드</button>
-      <button class="mode-btn" data-mode="8">8/8 박자 모드</button>
-    </div>
-    <button class="start-btn" id="startBtn">GAME START</button>
-    <div class="title-note">4/4는 앱 3타 + 사용자 1타<br>8/8은 앱 6타 + 사용자 2타</div>
-    <div class="title-footer"><span class="creator">제작자 : cnation(문명국)</span><span class="version">Version 1.0.0</span></div>
-  </main>
 
-  <main class="screen game-screen hidden" id="gameScreen">
-    <div class="hud">
-      <div class="hud-card"><div class="hud-label">SCORE</div><div class="hud-value" id="scoreEl">0</div></div>
-      <div class="hud-card"><div class="hud-label">LEVEL</div><div class="hud-value" id="levelEl">1</div></div>
-      <div class="hud-card"><div class="hud-label">LIFE</div><div class="hud-value" id="lifeEl">♥♥♥</div></div>
-    </div>
-    <div class="status" id="statusEl">준비</div>
-    <div class="progress"><div id="progressEl"></div></div>
-    <div class="board-wrap" id="boardWrap"><div class="board" id="board"><canvas id="threeBoard"></canvas></div></div>
-    <div class="bottom-bar"><button class="back-btn" id="quitBtn">타이틀로</button></div>
-  </main>
+<div id="cnation-canvas-container"></div>
 
-  <main class="screen over-screen hidden" id="overScreen">
-    <div class="over-title">GAME OVER</div>
-    <div class="over-score" id="finalScore">SCORE 0</div>
-    <div class="over-sub" id="finalLevel">LEVEL 1</div>
-    <div class="over-actions">
-      <button class="start-btn" id="retryBtn">다시 시작</button>
-      <button class="back-btn" id="titleBtn">타이틀로</button>
-    </div>
-  </main>
+<div id="cnation-ui-layer">
+<div id="cnation-hud">
+<div id="cnation-score-disp">Score: 0</div>
+<div id="cnation-level-disp">Level: 1</div>
+<div id="cnation-life-disp">Life: 3</div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js"></script>
+</div>
+
+<div id="cnation-message"></div>
+
+<div id="cnation-title-screen">
+<h1>cnation-4x4drum</h1>
+<button class="cnation-btn" id="cnation-btn-44">4/4 박자 모드 (Beta)</button>
+<button class="cnation-btn" id="cnation-btn-88">8/8 박자 모드 (Beta)</button>
+<div id="cnation-footer">
+<span></span>
+<span>제작자 : cnation(문명국)</span>
+<span>Beta 1.0</span>
+</div>
+</div>
+
 <script>
-(() => {
-  const VERSION = '1.0.0';
-  const rows = ['a','b','c','d'];
-  const pads = [];
-  const padMap = new Map();
-  const board = document.getElementById('board');
-  const threeCanvas = document.getElementById('threeBoard');
-  const boardWrap = document.getElementById('boardWrap');
-  const titleScreen = document.getElementById('titleScreen');
-  const gameScreen = document.getElementById('gameScreen');
-  const overScreen = document.getElementById('overScreen');
-  const scoreEl = document.getElementById('scoreEl');
-  const levelEl = document.getElementById('levelEl');
-  const lifeEl = document.getElementById('lifeEl');
-  const statusEl = document.getElementById('statusEl');
-  const progressEl = document.getElementById('progressEl');
-  const finalScore = document.getElementById('finalScore');
-  const finalLevel = document.getElementById('finalLevel');
+// 시스템 변수
+let cnation_audioCtx;
+let cnation_scene, cnation_camera, cnation_renderer, cnation_raycaster;
+let cnation_pads = [];
+let cnation_particles = [];
 
-  let mode = 4, score = 0, level = 1, life = 3, successesInLevel = 0;
-  let baseInterval = .5;
-  let running = false, waiting = false, expected = [], expectedIndex = 0, targetTimes = [];
-  let roundToken = 0, audioCtx = null;
+// 게임 상태 변수
+let cnation_gameState = 'title'; // title, practice, playing, gameover
+let cnation_mode = 4; // 4 or 8
+let cnation_score = 0;
+let cnation_level = 1;
+let cnation_life = 3;
+let cnation_interval = 0.5; // 시작 간격 0.5초
 
+let cnation_sequence = [];
+let cnation_stepIndex = 0;
+let cnation_isUserTurn = false;
+let cnation_nextBeatTime = 0;
+let cnation_practiceCount = 0;
+let cnation_tapsInLevel = 0;
+let cnation_expectedUserTaps = 0;
+let cnation_currentUserTaps = 0;
 
-  // Three.js orthographic board: no perspective distortion.
-  function initThreeBoard(){
-    if(!window.THREE || !threeCanvas) return;
-    const renderer = new THREE.WebGLRenderer({canvas:threeCanvas,alpha:true,antialias:true});
-    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-2.2,2.2,2.2,-2.2,0.1,20);
-    camera.position.set(0,0,8); camera.lookAt(0,0,0);
-    const ambient = new THREE.AmbientLight(0xffffff,1.45); scene.add(ambient);
-    const key = new THREE.DirectionalLight(0x9dc9ff,2.1); key.position.set(-2,3,6); scene.add(key);
-    const fill = new THREE.DirectionalLight(0x5b88bb,1.0); fill.position.set(3,-2,4); scene.add(fill);
-    const geometry = new THREE.BoxGeometry(.86,.86,.22);
-    for(let r=0;r<4;r++) for(let c=0;c<4;c++){
-      const material = new THREE.MeshStandardMaterial({color:0x29405b,roughness:.38,metalness:.12});
-      const mesh = new THREE.Mesh(geometry,material);
-      mesh.position.set(-1.5+c,1.5-r,0);
-      scene.add(mesh);
-    }
-    function render(){
-      const rect = threeCanvas.getBoundingClientRect();
-      const w=Math.max(1,Math.floor(rect.width)), h=Math.max(1,Math.floor(rect.height));
-      if(threeCanvas.width!==w || threeCanvas.height!==h) renderer.setSize(w,h,false);
-      renderer.render(scene,camera);
-    }
-    render(); window.addEventListener('resize',render,{passive:true});
-  }
+// 초기화 함수
+function cnation_init() {
+cnation_initThreeJS();
+cnation_initAudio();
+cnation_bindEvents();
+cnation_animate();
+}
 
-  initThreeBoard();
+function cnation_initThreeJS() {
+const container = document.getElementById('cnation-canvas-container');
+cnation_scene = new THREE.Scene();
+cnation_camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+cnation_camera.position.set(0, -2, 6);
+cnation_camera.lookAt(0, 0, 0);
 
-  for (let r=0;r<4;r++) for(let c=0;c<4;c++){
-    const id = rows[r] + (c+1);
-    const btn = document.createElement('button');
-    btn.className = 'pad'; btn.textContent = id; btn.dataset.id = id;
-    board.appendChild(btn); pads.push(btn); padMap.set(id, btn);
-    btn.addEventListener('pointerdown', e => { e.preventDefault(); userTap(id); });
-  }
+cnation_renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+cnation_renderer.setSize(window.innerWidth, window.innerHeight);
+container.appendChild(cnation_renderer.domElement);
 
-  document.querySelectorAll('.mode-btn').forEach(btn => btn.addEventListener('click', () => {
-    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); mode = Number(btn.dataset.mode);
-  }));
-  document.getElementById('startBtn').onclick = startGame;
-  document.getElementById('retryBtn').onclick = startGame;
-  document.getElementById('titleBtn').onclick = goTitle;
-  document.getElementById('quitBtn').onclick = goTitle;
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+cnation_scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(0, 10, 10);
+cnation_scene.add(dirLight);
 
-  function show(which){[titleScreen,gameScreen,overScreen].forEach(x=>x.classList.add('hidden'));which.classList.remove('hidden')}
-  function goTitle(){running=false;waiting=false;roundToken++;show(titleScreen)}
-  function reset(){score=0;level=1;life=3;successesInLevel=0;baseInterval=mode===4?.5:.3;running=true;waiting=false;expected=[];expectedIndex=0;roundToken++;updateHud()}
-  function updateHud(){scoreEl.textContent=score;levelEl.textContent=level;lifeEl.textContent='♥'.repeat(life)+'♡'.repeat(3-life);progressEl.style.width=(successesInLevel/5*100)+'%'}
-  const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const padGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.2);
+const spacing = 1.0;
+const offsetX = -1.5 * spacing;
+const offsetY = 1.5 * spacing;
 
-  function ensureAudio(){if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume()}
-  function tone(freq=650,dur=.045,gain=.05,type='square'){
-    ensureAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-    o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);
-    o.connect(g).connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);
-  }
-  function demoSound(){tone(760,.045,.035,'square')}
-  function successSound(perfect){tone(perfect?1120:900,.07,.07,'triangle'); if(perfect)setTimeout(()=>tone(1450,.045,.035,'sine'),45)}
-  function failSound(){tone(180,.1,.075,'sawtooth')}
+// 패드 생성 (4x4)
+for (let row = 0; row < 4; row++) {
+for (let col = 0; col < 4; col++) {
+const material = new THREE.MeshPhongMaterial({ color: 0x444444, shininess: 100 });
+const pad = new THREE.Mesh(padGeometry, material);
+pad.position.set(offsetX + col * spacing, offsetY - row * spacing, 0);
+pad.userData = { id: row * 4 + col, row: row, col: col, baseColor: 0x444444 };
+cnation_scene.add(pad);
+cnation_pads.push(pad);
+}
+}
+cnation_raycaster = new THREE.Raycaster();
+}
 
-  async function flash(id,cls,dur=120){const p=padMap.get(id);if(!p)return;p.classList.add(cls);await sleep(dur);p.classList.remove(cls)}
-  function goldParticles(id){
-    const pad=padMap.get(id),pr=pad.getBoundingClientRect(),wr=boardWrap.getBoundingClientRect();
-    for(let i=0;i<10;i++){
-      const s=document.createElement('i');s.className='gold-spark';
-      s.style.left=(pr.left-wr.left+pr.width*(.25+Math.random()*.5))+'px';s.style.top=(pr.top-wr.top+pr.height*.45)+'px';
-      s.style.setProperty('--dx',((Math.random()-.5)*55)+'px');s.style.setProperty('--dy',(-24-Math.random()*48)+'px');
-      boardWrap.appendChild(s);setTimeout(()=>s.remove(),700);
-    }
-  }
+function cnation_initAudio() {
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+cnation_audioCtx = new AudioContext();
+}
 
-  function intervalForLevel(lvl){
-    let t=baseInterval;
-    for(let l=2;l<=lvl;l++){
-      const reduction = l<=3 ? .15 : l<=6 ? .10 : .05;
-      t *= (1-reduction);
-    }
-    return Math.max(t, mode===4?.18:.12);
-  }
+function cnation_playSound(type) {
+if (!cnation_audioCtx) return;
+const osc = cnation_audioCtx.createOscillator();
+const gain = cnation_audioCtx.createGain();
+osc.connect(gain);
+gain.connect(cnation_audioCtx.destination);
 
-  async function startGame(){ensureAudio();reset();show(gameScreen);statusEl.textContent='연습 시작';await sleep(450);await practice();if(running) nextRound()}
+const now = cnation_audioCtx.currentTime;
+if (type === 'app') {
+osc.type = 'sine';
+osc.frequency.setValueAtTime(600, now);
+gain.gain.setValueAtTime(0.5, now);
+gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+osc.start(now); osc.stop(now + 0.1);
+} else if (type === 'user') {
+osc.type = 'square';
+osc.frequency.setValueAtTime(800, now);
+gain.gain.setValueAtTime(0.8, now);
+gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+osc.start(now); osc.stop(now + 0.1);
+} else if (type === 'success') {
+osc.type = 'sine';
+osc.frequency.setValueAtTime(1200, now);
+gain.gain.setValueAtTime(0.6, now);
+gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+osc.start(now); osc.stop(now + 0.2);
+} else if (type === 'fail') {
+osc.type = 'sawtooth';
+osc.frequency.setValueAtTime(150, now);
+gain.gain.setValueAtTime(0.8, now);
+gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+osc.start(now); osc.stop(now + 0.3);
+}
+}
 
-  async function practice(){
-    const token=roundToken;
-    for(let c=0;c<4 && running && token===roundToken;c++){
-      const col=[rows[0]+(c+1),rows[1]+(c+1),rows[2]+(c+1),rows[3]+(c+1)];
-      const intv=mode===4?.5:.3;
-      let seq, demoCount;
-      if(mode===4){
-        seq=col; demoCount=3; expected=[col[3]];
-        statusEl.textContent=`연습 ${c+1}/4 · 마지막 패드를 눌러주세요`;
-      } else {
-        const next=(c+1)%4;
-        const col2=[rows[0]+(next+1),rows[1]+(next+1),rows[2]+(next+1),rows[3]+(next+1)];
-        seq=[col[0],col[1],col[2],col[3],col2[0],col2[1],col2[2],col2[3]];
-        demoCount=6; expected=[seq[6],seq[7]];
-        statusEl.textContent=`연습 ${c+1}/4 · 마지막 2박자를 이어서 눌러주세요`;
-      }
-      for(let i=0;i<demoCount;i++){demoSound();flash(seq[i],'demo',Math.min(140,intv*600));await sleep(intv*1000)}
-      expectedIndex=0; const zero=performance.now(); targetTimes=expected.map((_,i)=>zero+i*intv*1000); waiting=true;
-      const ok=await waitForInput(expected.length*intv*1000+650,token);
-      waiting=false;if(!ok&&running){statusEl.textContent='연습은 생명이 줄지 않습니다';await sleep(300)}
-      await sleep(260);
-    }
-    if(running){statusEl.textContent='본 게임 시작';await sleep(550)}
-  }
+function cnation_bindEvents() {
+document.getElementById('cnation-btn-44').addEventListener('click', () => cnation_startGame(4));
+document.getElementById('cnation-btn-88').addEventListener('click', () => cnation_startGame(8));
+window.addEventListener('resize', () => {
+cnation_camera.aspect = window.innerWidth / window.innerHeight;
+cnation_camera.updateProjectionMatrix();
+cnation_renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-  function waitForInput(timeout,token){return new Promise(resolve=>{
-    const start=performance.now(); const tick=()=>{
-      if(!running||token!==roundToken)return resolve(false);
-      if(!waiting)return resolve(true);
-      if(performance.now()-start>=timeout){waiting=false;resolve(false);return}
-      requestAnimationFrame(tick)
-    };tick();
-  })}
+const canvas = cnation_renderer.domElement;
+canvas.addEventListener('pointerdown', cnation_handleTouch);
+}
 
-  async function nextRound(){
-    if(!running)return; const token=roundToken; const intv=intervalForLevel(level);
-    const pattern = mode===4 ? makePattern4(level) : makePattern8(level);
-    const demoCount=mode===4?3:6; expected=pattern.slice(demoCount);expectedIndex=0;targetTimes=[];
-    statusEl.textContent=`LEVEL ${level} · 리듬을 기억하세요`;
-    for(let i=0;i<demoCount;i++){
-      if(!running||token!==roundToken)return;
-      demoSound();flash(pattern[i],'demo',Math.min(140,intv*600));await sleep(intv*1000);
-    }
-    const zero=performance.now();
-    for(let i=0;i<expected.length;i++)targetTimes.push(zero+i*intv*1000);
-    waiting=true;statusEl.textContent=mode===4?'마지막 1박자를 터치!':'마지막 2박자를 이어서 터치!';
-    setTimeout(()=>{
-      if(running&&waiting&&token===roundToken){missRound();}
-    }, expected.length*intv*1000+260);
-  }
+function cnation_startGame(mode) {
+if (cnation_audioCtx.state === 'suspended') cnation_audioCtx.resume();
+cnation_mode = mode;
+cnation_interval = mode === 8 ? 0.3 : 0.5;
+cnation_score = 0;
+cnation_level = 1;
+cnation_life = 3;
+cnation_practiceCount = 0;
+cnation_tapsInLevel = 0;
+document.getElementById('cnation-title-screen').style.display = 'none';
+document.getElementById('cnation-hud').style.display = 'flex';
+cnation_updateHUD();
+cnation_gameState = 'practice';
+cnation_showMessage("연습 모드 시작");
+setTimeout(cnation_startNextSequence, 1500);
+}
 
-  function userTap(id){
-    if(!running||!waiting)return;
-    tone(640,.055,.055,'square');
-    const now=performance.now(), target=targetTimes[expectedIndex], diff=Math.abs(now-target)/1000;
-    const correctPad=id===expected[expectedIndex], passWindow=.2, perfectWindow=.05;
-    if(correctPad && diff<=passWindow){
-      const perfect=diff<=perfectWindow;flash(id,perfect?'perfect':'success',180);if(perfect)goldParticles(id);successSound(perfect);
-      expectedIndex++;
-      if(expectedIndex>=expected.length){waiting=false;score+=10;successesInLevel++;updateHud();statusEl.textContent=perfect?'PERFECT!':'PASS!';
-        if(successesInLevel>=5){successesInLevel=0;level++;updateHud();statusEl.textContent=`LEVEL UP! → ${level}`;}
-        setTimeout(nextRound,420);
-      }
-    } else {
-      flash(id,'fail',190);failSound();failRound();
-    }
-  }
+function cnation_updateHUD() {
+document.getElementById('cnation-score-disp').innerText = `Score: ${cnation_score}`;
+document.getElementById('cnation-level-disp').innerText = `Level: ${cnation_level}`;
+document.getElementById('cnation-life-disp').innerText = `Life: ${cnation_life}`;
+}
 
-  function missRound(){if(!running||!waiting)return;waiting=false;statusEl.textContent='MISS';failSound();failRound(true)}
-  function failRound(isMiss=false){
-    waiting=false;life--;updateHud();statusEl.textContent=isMiss?'MISS · 생명 -1':'FAIL · 생명 -1';
-    if(life<=0){setTimeout(gameOver,500)} else setTimeout(nextRound,520);
-  }
-  function gameOver(){running=false;roundToken++;finalScore.textContent='SCORE '+score;finalLevel.textContent='LEVEL '+level;show(overScreen)}
+function cnation_showMessage(msg) {
+const el = document.getElementById('cnation-message');
+el.innerText = msg;
+el.style.display = 'block';
+setTimeout(() => { el.style.display = 'none'; }, 1000);
+}
 
-  const p=(r,c)=>rows[r]+(c+1);
-  const rev=a=>a.slice().reverse();
-  const choose=a=>a[Math.floor(Math.random()*a.length)];
+function cnation_createParticles(position) {
+const particleGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+const particleMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+for (let i = 0; i < 15; i++) {
+const p = new THREE.Mesh(particleGeo, particleMat);
+p.position.copy(position);
+p.userData = {
+vx: (Math.random() - 0.5) * 0.1,
+vy: Math.random() * 0.1 + 0.05,
+vz: (Math.random() - 0.5) * 0.1,
+life: 1.0
+};
+cnation_scene.add(p);
+cnation_particles.push(p);
+}
+}
 
-  function basicLines(){
-    const arr=[];
-    for(let r=0;r<4;r++)arr.push([p(r,0),p(r,1),p(r,2),p(r,3)]);
-    for(let c=0;c<4;c++)arr.push([p(0,c),p(1,c),p(2,c),p(3,c)]);
-    return arr;
-  }
-  function diagonals(){return [[p(0,0),p(1,1),p(2,2),p(3,3)],[p(0,3),p(1,2),p(2,1),p(3,0)]]}
-  function easyTurns(){return [
-    [p(0,0),p(0,1),p(1,1),p(2,1)], [p(0,3),p(1,3),p(1,2),p(1,1)],
-    [p(3,0),p(2,0),p(2,1),p(2,2)], [p(3,3),p(3,2),p(2,2),p(1,2)]
-  ]}
-  function makePattern4(lvl){
-    let pool=basicLines(); if(lvl>=2)pool=pool.concat(diagonals(),easyTurns()); if(lvl>=3)pool=pool.concat(easyTurns());
-    let seq=choose(pool).slice();
-    if(lvl>=4 && Math.random()<.45)seq=rev(seq);
-    return seq;
-  }
-  function makePattern8(lvl){
-    let first;
-    const diagChance=lvl>=2?.34:0;
-    if(Math.random()<diagChance){
-      const d=choose(diagonals()).slice(); if(lvl>=4&&Math.random()<.5)d.reverse();
-      const cross = d[0]===p(0,0)||d[3]===p(0,0) ? diagonals()[1].slice() : diagonals()[0].slice();
-      if(lvl>=4&&Math.random()<.5)cross.reverse();
-      return d.concat(cross);
-    }
-    first=makePattern4(lvl);
-    let second=makePattern4(lvl);
-    if(lvl>=3 && Math.random()<.35){second=second.slice(1).concat(second[0]);}
-    return first.concat(second);
-  }
-})();
+function cnation_flashPad(padId, colorHex) {
+const pad = cnation_pads[padId];
+pad.material.color.setHex(colorHex);
+setTimeout(() => {
+if(pad) pad.material.color.setHex(pad.userData.baseColor);
+}, 200);
+}
+
+function cnation_generatePattern() {
+let pattern = [];
+const steps = cnation_mode; 
+const isReverse = cnation_level >= 4 && Math.random() > 0.5;
+const allowDiagonal = cnation_level >= 2;
+
+let type = Math.floor(Math.random() * (allowDiagonal ? 3 : 2)); 
+// 0: 가로, 1: 세로, 2: 대각선
+
+if (type === 0) {
+const row = Math.floor(Math.random() * 4);
+for(let i=0; i<4; i++) pattern.push(row * 4 + i);
+if(cnation_mode === 8) {
+const row2 = (row + 1) % 4;
+for(let i=0; i<4; i++) pattern.push(row2 * 4 + i);
+}
+} else if (type === 1) {
+const col = Math.floor(Math.random() * 4);
+for(let i=0; i<4; i++) pattern.push(i * 4 + col);
+if(cnation_mode === 8) {
+const col2 = (col + 1) % 4;
+for(let i=0; i<4; i++) pattern.push(i * 4 + col2);
+}
+} else {
+// 대각선 (0,0 -> 3,3) 또는 (0,3 -> 3,0)
+const diagType = Math.random() > 0.5 ? 1 : 2;
+if(diagType === 1) {
+pattern = [0, 5, 10, 15];
+if(cnation_mode === 8) pattern = pattern.concat([3, 6, 9, 12]); // 엑스자 교차
+} else {
+pattern = [3, 6, 9, 12];
+if(cnation_mode === 8) pattern = pattern.concat([0, 5, 10, 15]);
+}
+}
+
+if(isReverse) pattern.reverse();
+return pattern;
+}
+
+function cnation_startNextSequence() {
+if (cnation_gameState === 'gameover') return;
+
+if (cnation_gameState === 'practice') {
+// 연습 4번: a1-d1, a2-d2, a3-d3, a4-d4
+cnation_sequence = [
+0 + cnation_practiceCount, 
+4 + cnation_practiceCount, 
+8 + cnation_practiceCount, 
+12 + cnation_practiceCount
+];
+if(cnation_mode === 8) {
+// 8박자 연습 패턴 임시 생성 (단순 반복)
+cnation_sequence = cnation_sequence.concat(cnation_sequence);
+}
+} else {
+cnation_sequence = cnation_generatePattern();
+}
+
+cnation_stepIndex = 0;
+cnation_isUserTurn = false;
+cnation_currentUserTaps = 0;
+cnation_expectedUserTaps = cnation_mode === 4 ? 1 : 2;
+
+cnation_nextBeatTime = cnation_audioCtx.currentTime + 0.5;
+cnation_scheduleAppBeats();
+}
+
+function cnation_scheduleAppBeats() {
+const appSteps = cnation_mode === 4 ? 3 : 6;
+
+function playStep() {
+if (cnation_gameState === 'gameover') return;
+
+if (cnation_stepIndex < appSteps) {
+const padId = cnation_sequence[cnation_stepIndex];
+cnation_playSound('app');
+cnation_flashPad(padId, 0xffffff);
+cnation_stepIndex++;
+setTimeout(playStep, cnation_interval * 1000);
+} else {
+cnation_isUserTurn = true;
+// 유저 입력 대기 시간 설정 (다음 박자)
+cnation_nextBeatTime = cnation_audioCtx.currentTime + cnation_interval;
+}
+}
+playStep();
+}
+
+function cnation_handleTouch(event) {
+if (!cnation_isUserTurn || cnation_gameState === 'gameover') return;
+
+const mouse = new THREE.Vector2();
+if(event.changedTouches) {
+mouse.x = (event.changedTouches[0].clientX / window.innerWidth) * 2 - 1;
+mouse.y = -(event.changedTouches[0].clientY / window.innerHeight) * 2 + 1;
+} else {
+mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+cnation_raycaster.setFromCamera(mouse, cnation_camera);
+const intersects = cnation_raycaster.intersectObjects(cnation_pads);
+
+if (intersects.length > 0) {
+const padId = intersects[0].object.userData.id;
+cnation_processUserTap(padId, intersects[0].object.position);
+}
+}
+
+function cnation_processUserTap(padId, position) {
+cnation_playSound('user');
+const appSteps = cnation_mode === 4 ? 3 : 6;
+const expectedPadId = cnation_sequence[appSteps + cnation_currentUserTaps];
+const timeDiff = Math.abs(cnation_audioCtx.currentTime - cnation_nextBeatTime);
+
+if (padId === expectedPadId) {
+if (timeDiff <= 0.05) {
+// Perfect
+cnation_flashPad(padId, 0xffd700);
+cnation_createParticles(position);
+cnation_playSound('success');
+cnation_score += 15; 
+} else if (timeDiff <= 0.20) {
+// Pass
+cnation_flashPad(padId, 0x0088ff);
+cnation_playSound('success');
+cnation_score += 10;
+} else {
+// Fail - 타이밍 안맞음
+cnation_handleFail(padId);
+return;
+}
+} else {
+// Fail - 잘못된 패드
+cnation_handleFail(padId);
+return;
+}
+
+cnation_updateHUD();
+cnation_currentUserTaps++;
+
+if (cnation_currentUserTaps >= cnation_expectedUserTaps) {
+cnation_isUserTurn = false;
+cnation_sequenceComplete();
+} else {
+cnation_nextBeatTime += cnation_interval;
+}
+}
+
+function cnation_handleFail(padId) {
+cnation_flashPad(padId, 0xff0000);
+cnation_playSound('fail');
+cnation_life--;
+cnation_updateHUD();
+cnation_isUserTurn = false;
+
+if (cnation_life <= 0) {
+cnation_gameState = 'gameover';
+cnation_showMessage("GAME OVER");
+setTimeout(() => {
+document.getElementById('cnation-title-screen').style.display = 'flex';
+document.getElementById('cnation-hud').style.display = 'none';
+}, 2000);
+} else {
+setTimeout(cnation_startNextSequence, 1000);
+}
+}
+
+function cnation_sequenceComplete() {
+if (cnation_gameState === 'practice') {
+cnation_practiceCount++;
+if (cnation_practiceCount >= 4) {
+cnation_gameState = 'playing';
+cnation_showMessage("본 게임 시작!");
+setTimeout(cnation_startNextSequence, 1500);
+} else {
+setTimeout(cnation_startNextSequence, 1000);
+}
+} else {
+cnation_tapsInLevel++;
+if (cnation_tapsInLevel >= 5) {
+cnation_levelUp();
+} else {
+setTimeout(cnation_startNextSequence, 1000);
+}
+}
+}
+
+function cnation_levelUp() {
+cnation_level++;
+cnation_tapsInLevel = 0;
+cnation_showMessage(`Level ${cnation_level}`);
+
+if (cnation_level <= 3) {
+cnation_interval *= 0.85; // 15% 감소(속도증가)
+} else if (cnation_level <= 6) {
+cnation_interval *= 0.90; // 10% 감소
+} else {
+cnation_interval *= 0.95; // 5% 감소
+}
+
+cnation_updateHUD();
+setTimeout(cnation_startNextSequence, 1500);
+}
+
+function cnation_animate() {
+requestAnimationFrame(cnation_animate);
+
+// 파티클 애니메이션
+for (let i = cnation_particles.length - 1; i >= 0; i--) {
+const p = cnation_particles[i];
+p.position.x += p.userData.vx;
+p.position.y += p.userData.vy;
+p.position.z += p.userData.vz;
+p.userData.life -= 0.05;
+p.material.opacity = p.userData.life;
+p.material.transparent = true;
+if (p.userData.life <= 0) {
+cnation_scene.remove(p);
+cnation_particles.splice(i, 1);
+}
+}
+
+cnation_renderer.render(cnation_scene, cnation_camera);
+}
+
+window.onload = cnation_init;
 </script>
 </body>
 </html>
