@@ -1038,9 +1038,18 @@
   function isStandaloneMode(){
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
+
+  const UA = navigator.userAgent;
   function isIOSDevice(){
-    return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    return /iphone|ipad|ipod/i.test(UA) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  function isAndroidDevice(){ return /android/i.test(UA); }
+  function isMacDesktop(){ return /Macintosh/i.test(UA) && !isIOSDevice(); }
+  function isSafariBrowser(){ return /safari/i.test(UA) && !/chrome|chromium|crios|fxios|edg|opr/i.test(UA); }
+  function isFirefoxBrowser(){ return /firefox|fxios/i.test(UA); }
+  function isInAppBrowser(){
+    return /kakaotalk|naver\(inapp|line\/|fban|fbav|instagram|whale.*inapp|daumapps|band\//i.test(UA);
   }
 
   const installOverlay = document.getElementById('installOverlay');
@@ -1060,7 +1069,7 @@
       showInstallMessage('이미 홈 화면에 설치되어 있어요! 🎉');
       return;
     }
-    installOverlayText.innerHTML = '본인의 폰에 이 게임을 바로 실행할 수 있는<br>아이콘을 생성하시겠습니까?';
+    installOverlayText.innerHTML = '본인의 폰(또는 PC)에 이 게임을 바로 실행할 수 있는<br>아이콘을 생성하시겠습니까?';
     installConfirmActions.hidden = false;
     installOkBtn.hidden = true;
     installOverlay.hidden = false;
@@ -1072,17 +1081,50 @@
     installOverlay.hidden = true;
   });
   document.getElementById('installConfirmBtn').addEventListener('click', async () => {
+    // 1) 카카오톡/인스타그램 등 인앱 브라우저 → 설치 API 자체가 막혀있으므로 외부 브라우저로 유도
+    if (isInAppBrowser()){
+      showInstallMessage('현재 앱 내 브라우저에서는 설치가 지원되지 않아요.<br>오른쪽 위(또는 아래) <b>···</b> 메뉴에서<br>"다른 브라우저로 열기"를 선택한 뒤 다시 시도해주세요.');
+      return;
+    }
+    // 2) 네이티브 설치 프롬프트 지원 브라우저 (안드로이드/데스크톱 Chrome·Edge·삼성인터넷 등)
     if (deferredInstallPrompt){
       const prompt = deferredInstallPrompt;
       deferredInstallPrompt = null;
       installOverlay.hidden = true;
       prompt.prompt();
       await prompt.userChoice;
-    } else if (isIOSDevice()){
-      showInstallMessage('Safari 하단의 <b>공유</b> 버튼(<b>⬆️</b>)을 누른 뒤<br>"홈 화면에 추가"를 선택해주세요.');
-    } else {
-      showInstallMessage('브라우저 메뉴에서<br>"홈 화면에 추가" 또는 "앱 설치"를 선택해주세요.');
+      return;
     }
+    // 3) iOS
+    if (isIOSDevice()){
+      if (isSafariBrowser()){
+        showInstallMessage('Safari 하단의 <b>공유</b> 버튼(<b>⬆️</b>)을 누른 뒤<br>"홈 화면에 추가"를 선택해주세요.');
+      } else {
+        showInstallMessage('iOS에서는 <b>Safari</b> 브라우저에서만<br>홈 화면 추가가 가능해요.<br>Safari로 열어서 다시 시도해주세요.');
+      }
+      return;
+    }
+    // 4) macOS 데스크톱 Safari (beforeinstallprompt 미지원)
+    if (isMacDesktop() && isSafariBrowser()){
+      showInstallMessage('Safari 메뉴의 <b>파일 → Dock에 추가</b>를 선택하면<br>Dock에 아이콘이 생성돼요.');
+      return;
+    }
+    // 5) Firefox (안드로이드/데스크톱)
+    if (isFirefoxBrowser()){
+      if (isAndroidDevice()){
+        showInstallMessage('Firefox 메뉴(<b>⋮</b>)를 열어<br>"홈 화면에 추가"를 선택해주세요.');
+      } else {
+        showInstallMessage('Firefox는 앱 설치 기능을 지원하지 않아요.<br>Chrome이나 Edge 브라우저로 열어서 설치해주세요.');
+      }
+      return;
+    }
+    // 6) 안드로이드 기타 브라우저 (삼성인터넷 등, 설치 프롬프트 미제공)
+    if (isAndroidDevice()){
+      showInstallMessage('브라우저 메뉴에서<br>"홈 화면에 추가" 또는 "앱 설치"를 선택해주세요.');
+      return;
+    }
+    // 7) Windows/Linux 데스크톱 Chromium 계열인데 프롬프트가 아직 안 뜬 경우
+    showInstallMessage('주소창 오른쪽의 <b>설치 아이콘</b>을 클릭하거나<br>브라우저 메뉴에서 "앱 설치"를 선택해주세요.');
   });
 
   document.getElementById('versionTag').textContent = 'Version ' + APP_VERSION;
