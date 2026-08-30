@@ -1133,6 +1133,12 @@
   setTimeout(resizeRenderer, 200);
   loop();
 
+  // 9) cnation-app 허브에서 "홈 화면에 바로가기 만들기"로 들어온 경우
+  //    버튼을 찾아 헤매지 않도록 설치 안내를 자동으로 띄워줌
+  if (new URLSearchParams(location.search).get('addHome') === '1') {
+    document.getElementById('installBtn').click();
+  }
+
 })();
 </script>
 </body>
