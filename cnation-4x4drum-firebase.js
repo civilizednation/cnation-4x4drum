@@ -110,6 +110,7 @@ window.cnationDrumResetRanking = async function(){
     ok = !!(await res.json()).ok;
   } catch (e) { ok = false; }
   if (!ok) { alert("비밀번호가 틀렸습니다."); return; }
+  if (!confirm("전체 랭킹 정보를 리셋(삭제)하시겠습니까?")) return;
   for (const m of MODE_INFO){
     await setDoc(doc(db, SCORE_COL, m.key), { scores: [] });
     window.cnationDrumCachedScores[m.key] = [];
