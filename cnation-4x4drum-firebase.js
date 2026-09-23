@@ -14,7 +14,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const SCORE_COL = "cnation-4x4drum-scores";
-const ADMIN_PW = "1257";
 
 const MODE_INFO = [
   { key: "mode44", name: "4분의 4박자", color: "#42e5ff" },
@@ -100,16 +99,23 @@ window.cnationDrumCloseRanking = function(){
 
 window.cnationDrumResetRanking = async function(){
   const pw = prompt("관리자 비밀번호를 입력하세요:");
-  if (pw === ADMIN_PW){
-    for (const m of MODE_INFO){
-      await setDoc(doc(db, SCORE_COL, m.key), { scores: [] });
-      window.cnationDrumCachedScores[m.key] = [];
-    }
-    alert("전체 랭킹이 성공적으로 초기화되었습니다.");
-    window.cnationDrumRenderRanking();
-  } else if (pw !== null){
-    alert("비밀번호가 틀렸습니다.");
+  if (pw === null) return;
+  let ok = false;
+  try {
+    const res = await fetch("/api/check-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw })
+    });
+    ok = !!(await res.json()).ok;
+  } catch (e) { ok = false; }
+  if (!ok) { alert("비밀번호가 틀렸습니다."); return; }
+  for (const m of MODE_INFO){
+    await setDoc(doc(db, SCORE_COL, m.key), { scores: [] });
+    window.cnationDrumCachedScores[m.key] = [];
   }
+  alert("전체 랭킹이 성공적으로 초기화되었습니다.");
+  window.cnationDrumRenderRanking();
 };
 
 /* ---------- 점수 등록 ---------- */
